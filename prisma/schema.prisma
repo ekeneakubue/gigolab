@@ -1,0 +1,84 @@
+// Gigolab — tenants (companies) and members (users).
+// Set `DATABASE_URL` in `.env` (see https://pris.ly/d/prisma-schema#accessing-environment-variables).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// prisma/schema.prisma
+datasource db {
+  provider  = "postgresql"
+  url  	    = env("DATABASE_URL")
+}
+
+enum AccountStatus {
+  Active
+  Trial
+  Inactive
+}
+
+enum CompanyPlan {
+  Base
+  Ascent
+  Summit
+  Pinnacle
+}
+
+/// Matches app roles; `LabManager` maps to the display label "Lab Manager".
+enum UserRole {
+  Admin
+  Manager
+  Staff
+  LabManager       @map("Lab Manager")
+  Supervisor
+  Receptionist
+  Technician
+}
+
+model Company {
+  id            String         @id @default(cuid())
+  name          String
+  initials      String
+  location      String
+  plan          CompanyPlan    @default(Base)
+  status        AccountStatus  @default(Active)
+  contactEmail  String
+  phone         String?
+  joinedAt      DateTime       @default(now())
+  lastActiveAt  DateTime?
+  /// Denormalised for dashboards; can be maintained by app logic or jobs.
+  userCount     Int            @default(0)
+  sampleCount   Int            @default(0)
+  logoUrl       String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  users User[]
+
+  @@index([status])
+  @@map("companies")
+}
+
+model User {
+  id           String         @id @default(cuid())
+  companyId    String?
+  company      Company?       @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  email        String         @unique
+  name         String
+  initials     String
+  role         UserRole
+  status       AccountStatus  @default(Active)
+  accessLabel  String         @default("Tests limited")
+
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  lastSeenAt   DateTime?
+
+  passwordHash String?
+  imageUrl     String?
+
+  @@index([companyId])
+  @@index([status])
+  @@map("users")
+}

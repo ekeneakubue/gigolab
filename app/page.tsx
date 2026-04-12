@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Navbar from "@/app/components/Navbar";
 
 // ─── Flask path for hero animation (viewBox 0 0 480 500) ─────────────────────
 const FLASK =
@@ -503,22 +504,99 @@ function HeroAnimation() {
   );
 }
 
-const editions = [
+/** Admin Dashboard — grouped into scannable feature cards */
+const adminFeatureCards = [
   {
-    name: "Base",
-    desc: "Everything you need in a sample management solution for individual teams.",
+    title: "Registration & catalog",
+    accent: "from-emerald-500/20 to-teal-500/10",
+    border: "border-emerald-200/80",
+    dot: "bg-emerald-500",
+    items: [
+      "Registration",
+      "Managing tests",
+      "Managing cultures & antibiotics",
+      "Managing tests & cultures price list",
+    ],
   },
   {
-    name: "Ascent",
-    desc: "For multi-group organizations who need expanded features in security, roles, shipping, and requisitions.",
+    title: "Patients, doctors & documents",
+    accent: "from-violet-500/20 to-purple-500/10",
+    border: "border-violet-200/80",
+    dot: "bg-violet-500",
+    items: [
+      "Referring doctors management",
+      "Patient management",
+      "Generating patient receipt",
+      "Full management of patient test report",
+      "Printing patient receipt & test report",
+      "Print barcodes",
+    ],
   },
   {
-    name: "Summit",
-    desc: "A multi-tenancy solution with organism-level hierarchy, group-assigned fields, and test results management.",
+    title: "Home visits & notifications",
+    accent: "from-sky-500/20 to-blue-500/10",
+    border: "border-sky-200/80",
+    dot: "bg-sky-500",
+    items: [
+      "Managing patient home visit requests",
+      "Home visit schedule per day",
+      "Notification system (messages & home visits)",
+    ],
   },
   {
-    name: "Pinnacle",
-    desc: "A powerful, multi-group, study management solution with visit modeling, metrics, and more.",
+    title: "Team, roles & cloud",
+    accent: "from-amber-500/20 to-orange-500/10",
+    border: "border-amber-200/80",
+    dot: "bg-amber-500",
+    items: [
+      "Contracts with discounts",
+      "Multi-user with different roles",
+      "Internal chat between lab employees",
+      "Monitoring online users (cloud)",
+    ],
+  },
+  {
+    title: "Finance, settings & compliance",
+    accent: "from-rose-500/20 to-pink-500/10",
+    border: "border-rose-200/80",
+    dot: "bg-rose-500",
+    items: [
+      "Accounting: expenses, income, profits & inventory",
+      "Laboratory configuration settings",
+      "Database backup",
+      "Supports RTL & LIS",
+    ],
+  },
+];
+
+const patientFeatureCards = [
+  {
+    title: "Patient portal",
+    accent: "from-cyan-500/20 to-teal-500/10",
+    border: "border-cyan-200/80",
+    dot: "bg-cyan-500",
+    items: [
+      "Patient profile management",
+      "View patient test reports & receipts",
+      "Send patient home visit requests",
+    ],
+  },
+  {
+    title: "Outreach & standards",
+    accent: "from-indigo-500/20 to-blue-500/10",
+    border: "border-indigo-200/80",
+    dot: "bg-indigo-500",
+    items: [
+      "Notify patients with codes & results (email & SMS)",
+      "Supports RTL & LIS",
+    ],
+  },
+  {
+    title: "Learning & support",
+    accent: "from-rose-500/20 to-pink-500/10",
+    border: "border-rose-200/80",
+    dot: "bg-rose-500",
+    items: ["Access training videos"],
   },
 ];
 
@@ -529,39 +607,201 @@ const stats = [
   { label: "Years Experience", value: "25+" },
 ];
 
+const statShowcaseThemes = [
+  {
+    bar: "from-emerald-500 to-teal-500",
+    glow: "shadow-emerald-500/15",
+    iconBg: "bg-emerald-500/12 text-emerald-700",
+  },
+  {
+    bar: "from-violet-500 to-purple-600",
+    glow: "shadow-violet-500/15",
+    iconBg: "bg-violet-500/12 text-violet-700",
+  },
+  {
+    bar: "from-sky-500 to-blue-600",
+    glow: "shadow-sky-500/15",
+    iconBg: "bg-sky-500/12 text-sky-700",
+  },
+  {
+    bar: "from-amber-500 to-orange-600",
+    glow: "shadow-amber-500/15",
+    iconBg: "bg-amber-500/12 text-amber-800",
+  },
+];
+
+const dataPillars = [
+  {
+    step: "01",
+    title: "One connected workflow",
+    desc: "Registration, tests, cultures, and billing live together—no siloed spreadsheets or duplicate entry.",
+    accent:
+      "border-emerald-200/80 bg-linear-to-br from-emerald-500/[0.06] to-transparent",
+    stepRing: "bg-emerald-500 text-white shadow-emerald-500/25",
+  },
+  {
+    step: "02",
+    title: "Integrity by design",
+    desc: "Structured records, clear audit trails, and controls that keep every change traceable.",
+    accent:
+      "border-violet-200/80 bg-linear-to-br from-violet-500/[0.06] to-transparent",
+    stepRing: "bg-violet-600 text-white shadow-violet-500/25",
+  },
+  {
+    step: "03",
+    title: "Audit-ready compliance",
+    desc: "Built with Good Practice in mind—including alignment with 21 CFR Part 11 expectations.",
+    accent:
+      "border-amber-200/80 bg-linear-to-br from-amber-500/[0.07] to-transparent",
+    stepRing: "bg-amber-500 text-white shadow-amber-500/25",
+  },
+];
+
 const testimonials = [
   {
     quote:
       "The real beauty of Gigolab is the inherent flexibility of the program. This is especially important when your accession procedures or underlying data requirements are subject to unanticipated change.",
     author: "Robert Hanner",
     title: "Former President of ISBER",
+    theme: {
+      bar: "from-emerald-400 via-emerald-500 to-teal-600",
+      glow: "shadow-emerald-500/10",
+      avatar: "bg-emerald-500/15 text-emerald-800 ring-2 ring-emerald-500/25",
+      quoteTint: "text-emerald-600/90",
+    },
   },
   {
     quote:
       "Gigolab has been a lifesaver for us, and we absolutely could not function without it.",
     author: "Susan Arenson",
     title: "LIS Manager",
+    theme: {
+      bar: "from-violet-400 via-purple-500 to-fuchsia-600",
+      glow: "shadow-violet-500/10",
+      avatar: "bg-violet-500/15 text-violet-800 ring-2 ring-violet-500/25",
+      quoteTint: "text-violet-600/90",
+    },
   },
   {
     quote:
       "Our IT department is very pleased with how easy it is to maintain and support. Considering we gave up an Oracle server-based application for Gigolab, they are thrilled.",
     author: "Susan Mason",
     title: "Lab Manager @ AFRIMS, Bangkok",
+    theme: {
+      bar: "from-amber-400 via-orange-500 to-rose-500",
+      glow: "shadow-amber-500/10",
+      avatar: "bg-amber-500/15 text-amber-900 ring-2 ring-amber-500/25",
+      quoteTint: "text-amber-700/90",
+    },
   },
 ];
 
-const navLinks = [
-  { label: "Product", href: "#product" },
-  { label: "Services", href: "#services" },
-  { label: "Industries", href: "#industries" },
-  { label: "Resources", href: "#resources" },
-  { label: "About", href: "#about" },
-];
+function authorInitials(name: string) {
+  return name
+    .split(/\s+/)
+    .map((w) => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+/** Hub diagram for “single source of truth” section */
+function SingleSourceVisual() {
+  const nodes = [
+    { x: 160, y: 42, w: 100, h: 36, label: "Samples", rx: 8 },
+    { x: 270, y: 132, w: 100, h: 36, label: "Tests", rx: 8 },
+    { x: 160, y: 222, w: 100, h: 36, label: "Reports", rx: 8 },
+    { x: 50, y: 132, w: 100, h: 36, label: "LIS / RTL", rx: 8 },
+  ] as const;
+  return (
+    <figure
+      className="relative mx-auto w-full max-w-md lg:max-w-none"
+      aria-hidden
+    >
+      <div className="absolute -inset-6 rounded-[2.25rem] bg-linear-to-br from-emerald-400/20 via-transparent to-violet-400/15 blur-2xl" />
+      <div className="relative overflow-hidden rounded-3xl border border-zinc-200/90 bg-white/95 p-6 shadow-2xl shadow-zinc-900/8 backdrop-blur-sm md:p-8">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-emerald-400/10" />
+        <div className="pointer-events-none absolute -bottom-20 -left-12 h-56 w-56 rounded-full bg-violet-400/10" />
+        <svg
+          viewBox="0 0 420 300"
+          className="relative z-1 w-full h-auto"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <defs>
+            <linearGradient id="ssv-line" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#10b981" stopOpacity="0.45" />
+              <stop offset="100%" stopColor="#8b5cf6" stopOpacity="0.35" />
+            </linearGradient>
+          </defs>
+          {nodes.map((n) => (
+            <line
+              key={n.label}
+              x1={210}
+              y1={150}
+              x2={n.x + n.w / 2}
+              y2={n.y + n.h / 2}
+              stroke="url(#ssv-line)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              opacity="0.85"
+            />
+          ))}
+          {nodes.map((n) => (
+            <g key={n.label}>
+              <rect
+                x={n.x}
+                y={n.y}
+                width={n.w}
+                height={n.h}
+                rx={n.rx}
+                fill="#fafafa"
+                stroke="#e4e4e7"
+                strokeWidth="1.5"
+              />
+              <text
+                x={n.x + n.w / 2}
+                y={n.y + n.h / 2 + 5}
+                textAnchor="middle"
+                className="fill-zinc-700 text-[11px] font-semibold"
+                style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}
+              >
+                {n.label}
+              </text>
+            </g>
+          ))}
+          <circle cx="210" cy="150" r="52" fill="#ecfdf5" stroke="#10b981" strokeWidth="2.5" />
+          <circle cx="210" cy="150" r="38" fill="#10b981" fillOpacity="0.12" />
+          <text
+            x="210"
+            y="148"
+            textAnchor="middle"
+            className="fill-zinc-900 text-[13px] font-bold"
+            style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}
+          >
+            Gigolab
+          </text>
+          <text
+            x="210"
+            y="166"
+            textAnchor="middle"
+            className="fill-zinc-500 text-[9px] font-medium uppercase tracking-wider"
+            style={{ fontFamily: "ui-sans-serif, system-ui, sans-serif" }}
+          >
+            single record
+          </text>
+        </svg>
+        <figcaption className="relative z-1 mt-4 text-center text-xs text-zinc-500">
+          Every touchpoint routes through one authoritative system.
+        </figcaption>
+      </div>
+    </figure>
+  );
+}
 
 const footerColumns = [
   {
-    heading: "Product",
-    links: ["Gigolab", "Base", "Ascent", "Summit", "Pinnacle"],
+    heading: "Features",
+    links: ["Admin dashboard", "Patient portal", "Notifications", "Accounting"],
   },
   {
     heading: "Services",
@@ -580,36 +820,7 @@ const footerColumns = [
 export default function Home() {
   return (
     <div className="min-h-screen bg-white font-sans">
-      {/* ── Navigation ── */}
-      <header className="sticky top-0 z-50 bg-white border-b border-zinc-100 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-10">
-            <Link
-              href="/"
-              className="text-xl font-bold tracking-tight text-zinc-900 select-none"
-            >
-              gigolab
-            </Link>
-            <nav className="hidden md:flex items-center gap-7">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  className="text-sm font-medium text-zinc-500 hover:text-zinc-900 transition-colors"
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </nav>
-          </div>
-          <Link
-            href="#demo"
-            className="bg-zinc-900 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-zinc-700 transition-colors shadow-sm"
-          >
-            Get a Demo
-          </Link>
-        </div>
-      </header>
+      <Navbar activePath="/" />
 
       {/* ── Hero ── */}
       <section className="bg-zinc-900 text-white overflow-hidden">
@@ -634,10 +845,10 @@ export default function Home() {
                 Get a Demo
               </Link>
               <Link
-                href="#product"
+                href="#features"
                 className="text-sm font-medium text-zinc-400 hover:text-white transition-colors"
               >
-                View editions →
+                Explore features →
               </Link>
             </div>
           </div>
@@ -649,122 +860,343 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Four Editions ── */}
-      <section id="product" className="py-24 px-6 bg-zinc-50">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-3xl font-bold text-zinc-900 mb-2 tracking-tight">
-            Four editions, fully configurable.
-          </h2>
-          <p className="text-zinc-400 text-sm mb-12">
-            Choose the plan that fits your lab&apos;s scale and workflow.
-          </p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {editions.map((edition) => (
-              <div
-                key={edition.name}
-                className="bg-white rounded-2xl p-7 shadow-md hover:shadow-xl transition-shadow duration-300 border border-zinc-100 flex flex-col"
-              >
-                <h3 className="text-lg font-bold text-zinc-900 mb-3">
-                  {edition.name}
-                </h3>
-                <p className="text-zinc-500 text-sm leading-relaxed flex-1 mb-7">
-                  {edition.desc}
-                </p>
-                <Link
-                  href="#"
-                  className="text-sm font-semibold text-zinc-900 hover:underline underline-offset-4"
-                >
-                  Explore {edition.name} →
-                </Link>
+      {/* ── Features (full viewport) ── */}
+      <section
+        id="features"
+        className="min-h-dvh flex flex-col bg-linear-to-b from-zinc-100 via-white to-zinc-50 px-6 py-12 md:py-16"
+      >
+        <div className="max-w-7xl mx-auto w-full flex flex-col flex-1 min-h-0">
+          <header className="shrink-0 mb-8 md:mb-10 text-center md:text-left">
+            <p className="text-xs font-semibold text-emerald-600 uppercase tracking-[0.2em] mb-3">
+              Gigolab software
+            </p>
+            <h2 className="text-3xl md:text-4xl font-bold text-zinc-900 tracking-tight mb-3">
+              Features
+            </h2>
+            <p className="text-zinc-500 text-base max-w-2xl">
+              Everything your lab and patients need — from registration and
+              cultures to home visits, accounting, and secure patient access.
+            </p>
+          </header>
+
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 -mr-1 [scrollbar-gutter:stable]">
+            {/* Admin Dashboard */}
+            <div className="mb-12">
+              <div className="flex items-center gap-3 mb-6">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-900 text-white text-sm font-bold shadow-md">
+                  A
+                </span>
+                <div>
+                  <h3 className="text-xl font-bold text-zinc-900">
+                    Admin dashboard
+                  </h3>
+                  <p className="text-sm text-zinc-500">
+                    Full control for lab staff and administrators
+                  </p>
+                </div>
               </div>
-            ))}
+              <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4 items-stretch">
+                {adminFeatureCards.map((card) => (
+                  <article
+                    key={card.title}
+                    className={`group relative flex h-full flex-col overflow-hidden rounded-xl border ${card.border} bg-white shadow-sm hover:shadow-md transition-shadow duration-300`}
+                  >
+                    {/* Accent bar */}
+                    <div className={`h-1 w-full bg-linear-to-r ${card.dot.replace("bg-", "from-").replace("-500", "-400")} to-transparent`} aria-hidden />
+                    <div className="flex flex-1 flex-col p-5">
+                      <div className="flex items-center gap-2.5 mb-3">
+                        <span className={`h-2 w-2 shrink-0 rounded-full ${card.dot}`} aria-hidden />
+                        <h4 className="text-base font-semibold text-zinc-800">
+                          {card.title}
+                        </h4>
+                      </div>
+                      <ul className="space-y-2">
+                        {card.items.map((item) => (
+                          <li
+                            key={item}
+                            className="flex gap-2 text-sm text-zinc-600 leading-relaxed"
+                          >
+                            <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-zinc-400" aria-hidden />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+
+            {/* Patient Dashboard */}
+            <div className="pb-4">
+              <div className="flex items-center gap-3 mb-6">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-zinc-200 text-zinc-800 text-sm font-bold shadow-sm">
+                  P
+                </span>
+                <div>
+                  <h3 className="text-xl font-bold text-zinc-900">
+                    Patient dashboard
+                  </h3>
+                  <p className="text-sm text-zinc-500">
+                    Self-service for patients and guardians
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-3">
+                {patientFeatureCards.map((card) => (
+                  <article
+                    key={card.title}
+                    className={`group relative flex h-full flex-col overflow-hidden rounded-xl border ${card.border} bg-white shadow-sm hover:shadow-md transition-shadow duration-300`}
+                  >
+                    {/* Accent bar */}
+                    <div className={`h-1 w-full bg-linear-to-r ${card.dot.replace("bg-", "from-").replace("-500", "-400")} to-transparent`} aria-hidden />
+                    <div className="flex flex-1 flex-col p-5">
+                      <div className="flex items-center gap-2.5 mb-3">
+                        <span className={`h-2 w-2 shrink-0 rounded-full ${card.dot}`} aria-hidden />
+                        <h4 className="text-base font-semibold text-zinc-800">
+                          {card.title}
+                        </h4>
+                      </div>
+                      <ul className="space-y-2">
+                        {card.items.map((item) => (
+                          <li
+                            key={item}
+                            className="flex gap-2 text-sm text-zinc-600 leading-relaxed"
+                          >
+                            <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-zinc-400" aria-hidden />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
       {/* ── Single Source of Truth ── */}
-      <section className="py-24 px-6 bg-white">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-20 items-start">
-          {/* Left column */}
-          <div>
-            <h2 className="text-3xl font-bold text-zinc-900 mb-6 tracking-tight">
-              The single-source of truth for your data.
-            </h2>
-            <p className="text-zinc-600 leading-relaxed mb-4">
-              Gigolab is developed by people with real-lab experience.
-            </p>
-            <p className="text-zinc-600 leading-relaxed mb-4">
-              The software is designed to save you time, maintain data
-              integrity, and{" "}
-              <strong className="text-zinc-900 font-semibold">
-                keep you focused on research
-              </strong>
-              , not routine tasks.
-            </p>
-            <p className="text-zinc-600 leading-relaxed">
-              With over 25 years of experience, we ensure our products meet
-              Good Practice standards, including 21 CFR part 11.
-            </p>
+      <section
+        id="data"
+        className="relative py-24 md:py-32 px-6 overflow-hidden"
+      >
+        <div className="pointer-events-none absolute inset-0 bg-linear-to-b from-zinc-100 via-white to-zinc-50" />
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.4]"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 20% 20%, rgba(16,185,129,0.08), transparent 45%), radial-gradient(circle at 85% 60%, rgba(139,92,246,0.07), transparent 40%)",
+          }}
+        />
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.35] bg-[radial-gradient(circle_at_1px_1px,rgba(24,24,27,0.06)_1px,transparent_0)] bg-size-[20px_20px]"
+          aria-hidden
+        />
 
-            {/* Stats */}
-            <div className="mt-10 grid grid-cols-2 gap-4">
-              {stats.map((stat) => (
+        <div className="relative max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-2 gap-14 lg:gap-20 items-center mb-16 md:mb-20">
+            <div>
+              <p className="text-xs font-semibold text-emerald-600 uppercase tracking-[0.22em] mb-4">
+                Unified data
+              </p>
+              <h2 className="text-3xl md:text-4xl lg:text-[2.75rem] font-bold text-zinc-900 tracking-tight leading-[1.12] mb-6">
+                The single-source of truth for your data.
+              </h2>
+              <div className="space-y-4 text-zinc-600 text-base md:text-[17px] leading-relaxed max-w-xl">
+                <p>
+                  Gigolab is developed by people with{" "}
+                  <span className="text-zinc-900 font-medium">
+                    real-lab experience
+                  </span>
+                  —so the product matches how diagnostics teams actually work.
+                </p>
+                <p>
+                  The software is designed to save you time, maintain data
+                  integrity, and{" "}
+                  <strong className="text-zinc-900 font-semibold">
+                    keep you focused on research
+                  </strong>
+                  , not routine tasks.
+                </p>
+                <p>
+                  With over{" "}
+                  <span className="text-zinc-900 font-semibold">25 years</span>{" "}
+                  of experience, we ensure our products meet Good Practice
+                  standards, including{" "}
+                  <span className="text-zinc-900 font-semibold">
+                    21 CFR Part 11
+                  </span>
+                  .
+                </p>
+              </div>
+              <div className="mt-8 flex flex-wrap gap-2.5">
+                {[
+                  "21 CFR Part 11",
+                  "Good Practice",
+                  "Data integrity",
+                  "25+ years",
+                ].map((tag) => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center rounded-full border border-zinc-200/90 bg-white/80 px-3.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm backdrop-blur-sm"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <SingleSourceVisual />
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-5 mb-14 md:mb-16">
+            {dataPillars.map((p) => (
+              <article
+                key={p.step}
+                className={`group relative rounded-2xl border p-6 md:p-7 shadow-md hover:shadow-xl transition-shadow duration-300 ${p.accent}`}
+              >
+                <div className="flex items-start gap-4">
+                  <span
+                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold shadow-lg ${p.stepRing}`}
+                  >
+                    {p.step}
+                  </span>
+                  <div>
+                    <h3 className="text-lg font-bold text-zinc-900 mb-2">
+                      {p.title}
+                    </h3>
+                    <p className="text-sm text-zinc-600 leading-relaxed">
+                      {p.desc}
+                    </p>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
+            {stats.map((stat, i) => {
+              const th = statShowcaseThemes[i % statShowcaseThemes.length];
+              return (
                 <div
                   key={stat.label}
-                  className="bg-zinc-50 rounded-xl p-5 border border-zinc-100 shadow-sm"
+                  className={`relative overflow-hidden rounded-2xl border border-zinc-200/80 bg-white p-6 shadow-lg ${th.glow} transition-transform duration-300 hover:-translate-y-0.5`}
                 >
-                  <p className="text-2xl font-bold text-zinc-900">
+                  <div
+                    className={`absolute top-0 left-0 right-0 h-1 bg-linear-to-r ${th.bar}`}
+                    aria-hidden
+                  />
+                  <div
+                    className={`mb-4 inline-flex h-9 w-9 items-center justify-center rounded-lg text-xs font-bold ${th.iconBg}`}
+                  >
+                    {String(i + 1).padStart(2, "0")}
+                  </div>
+                  <p className="text-3xl md:text-4xl font-bold tracking-tight text-zinc-900 tabular-nums">
                     {stat.value}
                   </p>
-                  <p className="text-xs text-zinc-400 mt-1 uppercase tracking-wider">
+                  <p className="mt-2 text-xs font-medium text-zinc-500 uppercase tracking-wider">
                     {stat.label}
                   </p>
                 </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Right column — Testimonials */}
-          <div>
-            <h3 className="text-xl font-semibold text-zinc-900 mb-8">
-              What teams are saying about Gigolab
-            </h3>
-            <div className="flex flex-col gap-5">
-              {testimonials.map((t) => (
-                <blockquote
-                  key={t.author}
-                  className="bg-white rounded-2xl border border-zinc-100 p-6 shadow-md hover:shadow-lg transition-shadow duration-300"
-                >
-                  <p className="text-zinc-600 text-sm leading-relaxed mb-5">
-                    &ldquo;{t.quote}&rdquo;
-                  </p>
-                  <footer>
-                    <p className="text-sm font-semibold text-zinc-900">
-                      — {t.author}
-                    </p>
-                    <p className="text-xs text-zinc-400 mt-0.5">{t.title}</p>
-                  </footer>
-                </blockquote>
-              ))}
-            </div>
+              );
+            })}
           </div>
         </div>
       </section>
 
-      {/* ── Find Your Edition CTA ── */}
+      {/* ── Testimonials (full viewport) ── */}
+      <section
+        id="testimonials"
+        className="min-h-dvh flex flex-col bg-linear-to-b from-zinc-950 via-zinc-900 to-zinc-950 px-6 py-14 md:py-20 relative overflow-hidden"
+      >
+        {/* Ambient orbs */}
+        <div
+          className="pointer-events-none absolute top-1/4 -left-32 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute bottom-1/4 -right-32 h-80 w-80 rounded-full bg-violet-500/10 blur-3xl"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.15] bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.12)_1px,transparent_0)] bg-size-[24px_24px]"
+          aria-hidden
+        />
+
+        <div className="relative max-w-7xl mx-auto w-full flex-1 flex flex-col justify-center min-h-0">
+          <header className="text-center mb-12 md:mb-16 shrink-0">
+            <p className="text-xs font-semibold text-emerald-400/90 uppercase tracking-[0.25em] mb-4">
+              Voices from the lab
+            </p>
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white tracking-tight max-w-3xl mx-auto leading-tight">
+              What teams are saying about Gigolab
+            </h2>
+            <p className="text-zinc-400 mt-4 text-base md:text-lg max-w-xl mx-auto">
+              Real feedback from research leaders and lab operations who rely on
+              Gigolab every day.
+            </p>
+          </header>
+
+          <div className="grid md:grid-cols-3 gap-6 lg:gap-8 items-stretch">
+            {testimonials.map((t) => (
+              <blockquote
+                key={t.author}
+                className={`group relative flex flex-col rounded-3xl bg-zinc-900/70 backdrop-blur-md border border-zinc-700/60 p-8 pt-10 shadow-xl ${t.theme.glow} hover:border-zinc-600 hover:bg-zinc-900/85 transition-all duration-300`}
+              >
+                {/* Gradient accent bar */}
+                <div
+                  className={`absolute top-0 left-6 right-6 h-1 rounded-full bg-linear-to-r ${t.theme.bar} opacity-90`}
+                  aria-hidden
+                />
+                {/* Decorative quote */}
+                <span
+                  className={`font-serif text-7xl leading-none ${t.theme.quoteTint} opacity-40 select-none mb-2`}
+                  aria-hidden
+                >
+                  &ldquo;
+                </span>
+                <p className="text-zinc-300 text-[15px] leading-relaxed flex-1 mb-8">
+                  {t.quote}
+                </p>
+                <footer className="flex items-center gap-4 pt-6 border-t border-zinc-700/50">
+                  <div
+                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-sm font-bold ${t.theme.avatar}`}
+                    aria-hidden
+                  >
+                    {authorInitials(t.author)}
+                  </div>
+                  <div>
+                    <cite className="not-italic text-sm font-semibold text-white block">
+                      {t.author}
+                    </cite>
+                    <p className="text-xs text-zinc-500 mt-0.5 leading-snug">
+                      {t.title}
+                    </p>
+                  </div>
+                </footer>
+              </blockquote>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Features CTA ── */}
       <section className="py-24 px-6 bg-zinc-900 text-white">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
           <div>
             <h2 className="text-4xl font-bold tracking-tight mb-2">
-              Find Your Edition
+              See every feature
             </h2>
-            <p className="text-zinc-400">Get started below.</p>
+            <p className="text-zinc-400">
+              Admin and patient dashboards in one platform.
+            </p>
           </div>
           <Link
-            href="#product"
+            href="#features"
             className="shrink-0 inline-flex items-center bg-white text-zinc-900 font-semibold px-7 py-3.5 rounded-lg hover:bg-zinc-100 transition-colors shadow-lg"
           >
-            Learn more
+            View features
           </Link>
         </div>
       </section>
