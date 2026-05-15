@@ -7,6 +7,7 @@ type UserRow = {
   name: string;
   initials: string;
   email: string;
+  imageUrl?: string | null;
   role: string;
   company: string;
   status: "Active" | "Trial" | "Inactive";
@@ -16,7 +17,7 @@ type UserRow = {
 };
 
 type NewUserForm = {
-  image: string;
+  image: string | null;
   name: string;
   email: string;
   password: string;
@@ -24,16 +25,19 @@ type NewUserForm = {
   status: "Active" | "Trial" | "Inactive";
 };
 
-const STORAGE_KEY = "gigolab_admin_users";
-
-const initialUsers: UserRow[] = [
-  { id: "u1", name: "Dr. Amira Hassan", initials: "AH", email: "a.hassan@cairodx.com", role: "Lab Manager", company: "Cairo Diagnostics Lab", status: "Active", lastSeen: "2m ago", access: "Full access", created: "Jan 05, 2026" },
-  { id: "u2", name: "Mohamed El-Sayed", initials: "ME", email: "m.elsayed@nileh.com", role: "Supervisor", company: "NileHealth Analytics", status: "Active", lastSeen: "18m ago", access: "Manage tests", created: "Feb 01, 2026" },
-  { id: "u3", name: "Sara Khalil", initials: "SK", email: "s.khalil@alexmed.eg", role: "Receptionist", company: "AlexMed Center", status: "Active", lastSeen: "1h ago", access: "Receipts only", created: "Feb 12, 2026" },
-  { id: "u4", name: "Youssef Abdel-Aziz", initials: "YA", email: "y.abdelaziz@gizabio.com", role: "Admin", company: "Giza BioLab", status: "Trial", lastSeen: "3h ago", access: "All modules", created: "Mar 02, 2026" },
-  { id: "u5", name: "Nadia Mahmoud", initials: "NM", email: "n.mahmoud@delta-cs.com", role: "Lab Manager", company: "Delta Clinical Services", status: "Active", lastSeen: "5h ago", access: "Reports & billing", created: "Dec 20, 2025" },
-  { id: "u6", name: "Omar Yassin", initials: "OY", email: "omar@luxorlab.mail.com", role: "Technician", company: "Luxor Lab & Diagnostics", status: "Inactive", lastSeen: "14d ago", access: "Tests limited", created: "Mar 10, 2026" },
-];
+type ApiUser = {
+  id: string;
+  name: string;
+  initials: string;
+  email: string;
+  imageUrl: string | null;
+  role: string;
+  status: "Active" | "Trial" | "Inactive";
+  accessLabel: string;
+  createdAt: string;
+  lastSeenAt: string | null;
+  company: { id: string; name: string } | null;
+};
 
 const statusMeta: Record<string, { badge: string; dot: string }> = {
   Active: { badge: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
@@ -51,10 +55,14 @@ const rolePills: Record<string, string> = {
 
 const avatarColors = ["bg-emerald-600", "bg-teal-600", "bg-blue-600", "bg-violet-600", "bg-sky-600", "bg-cyan-600"];
 
+function isApiUser(payload: ApiUser | { error?: string }): payload is ApiUser {
+  return "id" in payload && typeof payload.id === "string";
+}
+
 const roleOptions = ["Admin", "Manager", "Staff"] as const;
 
 const emptyForm: NewUserForm = {
-  image: "",
+  image: null,
   name: "",
   email: "",
   password: "",
@@ -62,34 +70,51 @@ const emptyForm: NewUserForm = {
   status: "Active",
 };
 
-function getInitials(name: string): string {
-  return name
-    .trim()
-    .split(/\s+/)
-    .map((n) => n[0]?.toUpperCase() ?? "")
-    .join("")
-    .slice(0, 2);
-}
-
 export default function UsersPageClient() {
-  const [users, setUsers] = useState<UserRow[]>(initialUsers);
+  const [users, setUsers] = useState<UserRow[]>([]);
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form, setForm] = useState<NewUserForm>(emptyForm);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw) as UserRow[];
-      if (Array.isArray(parsed) && parsed.length > 0) setUsers(parsed);
-    } catch {}
-  }, []);
+  const formatDate = (value: string) =>
+    new Date(value).toLocaleDateString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+    });
+
+  const mapApiUserToRow = (user: ApiUser): UserRow => ({
+    id: user.id,
+    name: user.name,
+    initials: user.initials,
+    email: user.email,
+    imageUrl: user.imageUrl,
+    role: user.role,
+    company: user.company?.name ?? "Unassigned",
+    status: user.status,
+    lastSeen: user.lastSeenAt ? formatDate(user.lastSeenAt) : "just now",
+    access: user.accessLabel,
+    created: formatDate(user.createdAt),
+  });
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
-  }, [users]);
+    async function loadUsers() {
+      try {
+        const response = await fetch("/api/users");
+        if (!response.ok) {
+          setUsers([]);
+          return;
+        }
+        const data = (await response.json()) as ApiUser[];
+        setUsers(data.map(mapApiUserToRow));
+      } catch {
+        setUsers([]);
+      }
+    }
+
+    loadUsers();
+  }, []);
 
   const filteredUsers = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -109,7 +134,7 @@ export default function UsersPageClient() {
     [filteredUsers]
   );
 
-  const submitNewUser = (e: FormEvent) => {
+  const submitNewUser = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
     if (!form.name.trim() || !form.email.trim() || !form.password.trim()) {
@@ -117,21 +142,28 @@ export default function UsersPageClient() {
       return;
     }
 
-    const created = new Date().toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
-    const newUser: UserRow = {
-      id: `u${Date.now()}`,
-      name: form.name.trim(),
-      initials: getInitials(form.name),
-      email: form.email.trim(),
-      role: form.role,
-      company: "Unassigned",
-      status: form.status,
-      lastSeen: "just now",
-      access: "Tests limited",
-      created,
-    };
+    const response = await fetch("/api/users", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        role: form.role,
+        status: form.status,
+        imageUrl: form.image,
+      }),
+    });
 
-    setUsers((prev) => [newUser, ...prev]);
+    const payload = (await response.json()) as ApiUser | { error?: string };
+    if (!response.ok || !isApiUser(payload)) {
+      setError("error" in payload && payload.error ? payload.error : "Could not save user.");
+      return;
+    }
+
+    setUsers((prev) => [mapApiUserToRow(payload), ...prev]);
     setForm(emptyForm);
     setIsModalOpen(false);
   };
@@ -191,7 +223,15 @@ export default function UsersPageClient() {
                 <div className="absolute top-0 inset-x-0 h-0.5 bg-linear-to-r from-emerald-400 via-teal-400 to-emerald-300" />
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white text-sm font-bold shadow-sm ${avatar}`}>{u.initials}</div>
+                    {u.imageUrl ? (
+                      <img
+                        src={u.imageUrl}
+                        alt={u.name}
+                        className="h-10 w-10 shrink-0 rounded-xl object-cover shadow-sm"
+                      />
+                    ) : (
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white text-sm font-bold shadow-sm ${avatar}`}>{u.initials}</div>
+                    )}
                     <div className="min-w-0">
                       <p className="text-sm font-bold text-zinc-900 truncate">{u.name}</p>
                       <p className="text-[11px] text-zinc-400 truncate">{u.email}</p>
@@ -239,7 +279,15 @@ export default function UsersPageClient() {
                       <tr key={u.id} className="hover:bg-emerald-50/40 transition-colors">
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-3">
-                            <div className={`flex h-8 w-8 items-center justify-center rounded-xl text-white text-[11px] font-bold ${avatar}`}>{u.initials}</div>
+                            {u.imageUrl ? (
+                              <img
+                                src={u.imageUrl}
+                                alt={u.name}
+                                className="h-8 w-8 rounded-xl object-cover"
+                              />
+                            ) : (
+                              <div className={`flex h-8 w-8 items-center justify-center rounded-xl text-white text-[11px] font-bold ${avatar}`}>{u.initials}</div>
+                            )}
                             <div className="min-w-0">
                               <p className="text-[13px] font-semibold text-zinc-800 truncate">{u.name}</p>
                               <p className="text-[11px] text-zinc-400 truncate">{u.email}</p>
@@ -281,9 +329,22 @@ export default function UsersPageClient() {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, image: e.target.files?.[0]?.name ?? "" }))
-                    }
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) {
+                        setForm((f) => ({ ...f, image: null }));
+                        return;
+                      }
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        const result = typeof reader.result === "string" ? reader.result : null;
+                        setForm((f) => ({ ...f, image: result }));
+                      };
+                      reader.onerror = () => {
+                        setError("Could not read selected image.");
+                      };
+                      reader.readAsDataURL(file);
+                    }}
                     className="mt-1 block w-full rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm text-zinc-700 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100"
                   />
                 </div>

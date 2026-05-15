@@ -10,6 +10,8 @@ export type CompanyPlan = "Base" | "Ascent" | "Summit" | "Pinnacle";
  */
 export type Company = {
   id: string;
+  /** Auto-generated lab login code, e.g. Gigolab-A1b2C3 */
+  code: string;
   name: string;
   /** Short label for avatars; usually two letters. */
   initials: string;

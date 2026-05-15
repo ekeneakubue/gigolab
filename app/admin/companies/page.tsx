@@ -1,13 +1,17 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+
+import { generateCompanyCode } from "@/lib/company-code";
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
 type CompanyRow = {
-  id: number;
+  id: string | number;
+  code: string;
   name: string;
   initials: string;
+  logoUrl: string | null;
   location: string;
   plan: string;
   users: number;
@@ -18,121 +22,6 @@ type CompanyRow = {
   phone: string;
   lastActive: string;
 };
-
-const initialCompanies: CompanyRow[] = [
-  {
-    id: 1,
-    name: "Cairo Diagnostics Lab",
-    initials: "CD",
-    location: "Cairo, Egypt",
-    plan: "Pinnacle",
-    users: 42,
-    samples: 12_480,
-    status: "Active",
-    joined: "Jan 12, 2026",
-    contact: "dr.hassan@cairodx.com",
-    phone: "+20 10 1234 5678",
-    lastActive: "2h ago",
-  },
-  {
-    id: 2,
-    name: "NileHealth Analytics",
-    initials: "NH",
-    location: "Giza, Egypt",
-    plan: "Summit",
-    users: 28,
-    samples: 8_920,
-    status: "Active",
-    joined: "Feb 3, 2026",
-    contact: "info@nileh.com",
-    phone: "+20 11 9876 5432",
-    lastActive: "18m ago",
-  },
-  {
-    id: 3,
-    name: "AlexMed Center",
-    initials: "AM",
-    location: "Alexandria, Egypt",
-    plan: "Ascent",
-    users: 15,
-    samples: 4_200,
-    status: "Active",
-    joined: "Feb 18, 2026",
-    contact: "s.khalil@alexmed.eg",
-    phone: "+20 3 456 7890",
-    lastActive: "1h ago",
-  },
-  {
-    id: 4,
-    name: "Giza BioLab",
-    initials: "GB",
-    location: "Giza, Egypt",
-    plan: "Base",
-    users: 8,
-    samples: 640,
-    status: "Trial",
-    joined: "Mar 2, 2026",
-    contact: "y.abdelaziz@gizabio.com",
-    phone: "+20 10 5555 1234",
-    lastActive: "3h ago",
-  },
-  {
-    id: 5,
-    name: "Delta Clinical Services",
-    initials: "DC",
-    location: "Mansoura, Egypt",
-    plan: "Summit",
-    users: 33,
-    samples: 9_870,
-    status: "Active",
-    joined: "Dec 5, 2025",
-    contact: "n.mahmoud@delta-cs.com",
-    phone: "+20 50 123 4567",
-    lastActive: "5h ago",
-  },
-  {
-    id: 6,
-    name: "Suez Medical Labs",
-    initials: "SM",
-    location: "Suez, Egypt",
-    plan: "Ascent",
-    users: 19,
-    samples: 3_100,
-    status: "Inactive",
-    joined: "Nov 14, 2025",
-    contact: "admin@suezmed.com",
-    phone: "+20 62 345 6789",
-    lastActive: "14d ago",
-  },
-  {
-    id: 7,
-    name: "Luxor Lab & Diagnostics",
-    initials: "LL",
-    location: "Luxor, Egypt",
-    plan: "Base",
-    users: 6,
-    samples: 1_230,
-    status: "Trial",
-    joined: "Mar 10, 2026",
-    contact: "luxorlab@mail.com",
-    phone: "+20 95 678 9012",
-    lastActive: "6h ago",
-  },
-  {
-    id: 8,
-    name: "Aswan Pathology Center",
-    initials: "AP",
-    location: "Aswan, Egypt",
-    plan: "Ascent",
-    users: 22,
-    samples: 5_540,
-    status: "Active",
-    joined: "Oct 20, 2025",
-    contact: "contact@aswanpath.com",
-    phone: "+20 97 234 5678",
-    lastActive: "30m ago",
-  },
-];
 
 const statusMeta: Record<string, { badge: string; dot: string }> = {
   Active:   { badge: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
@@ -147,34 +36,110 @@ const avatarColors = [
 ];
 
 type NewCompanyForm = {
-  logo: string;
+  logo: string | null;
   name: string;
+  labCode: string;
+  password: string;
   location: string;
   status: "Active" | "Trial" | "Inactive";
   contact: string;
   phone: string;
 };
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
-export default function CompaniesPage() {
-  const [companies, setCompanies] = useState<CompanyRow[]>(initialCompanies);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingCompanyId, setEditingCompanyId] = useState<number | null>(null);
-  const [error, setError] = useState("");
-  const [editError, setEditError] = useState("");
-  const [form, setForm] = useState<NewCompanyForm>({
-    logo: "",
+function emptyNewCompanyForm(): NewCompanyForm {
+  return {
+    logo: null,
     name: "",
+    labCode: generateCompanyCode(),
+    password: "",
     location: "",
     status: "Active",
     contact: "",
     phone: "",
+  };
+}
+
+type ApiCompany = {
+  id: string;
+  code: string;
+  name: string;
+  initials: string;
+  location: string;
+  plan: string;
+  status: "Active" | "Trial" | "Inactive";
+  contactEmail: string;
+  phone: string | null;
+  joinedAt: string;
+  lastActiveAt: string | null;
+  userCount: number;
+  sampleCount: number;
+  logoUrl: string | null;
+};
+
+function readImageFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") resolve(reader.result);
+      else reject(new Error("Could not read selected image."));
+    };
+    reader.onerror = () => reject(new Error("Could not read selected image."));
+    reader.readAsDataURL(file);
   });
+}
+
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
+
+function isApiCompany(payload: ApiCompany | { error?: string }): payload is ApiCompany {
+  return "id" in payload && typeof payload.id === "string";
+}
+
+function mapApiCompanyToRow(company: ApiCompany): CompanyRow {
+  return {
+    id: company.id,
+    code: company.code,
+    name: company.name,
+    initials: company.initials,
+    logoUrl: company.logoUrl,
+    location: company.location,
+    plan: company.plan,
+    users: company.userCount,
+    samples: company.sampleCount,
+    status: company.status,
+    joined: dateFormatter.format(new Date(company.joinedAt)),
+    contact: company.contactEmail,
+    phone: company.phone ?? "N/A",
+    lastActive: company.lastActiveAt
+      ? dateFormatter.format(new Date(company.lastActiveAt))
+      : "just now",
+  };
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+const SKELETON_ROW_COUNT = 6;
+
+export default function CompaniesPage() {
+  const [companies, setCompanies] = useState<CompanyRow[]>([]);
+  const [isLoadingCompanies, setIsLoadingCompanies] = useState(true);
+  const [search, setSearch] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingCompanyId, setEditingCompanyId] = useState<string | number | null>(null);
+  const [error, setError] = useState("");
+  const [isAddingCompany, setIsAddingCompany] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [isSavingCompany, setIsSavingCompany] = useState(false);
+  const [form, setForm] = useState<NewCompanyForm>(emptyNewCompanyForm);
   const [editForm, setEditForm] = useState<NewCompanyForm>({
-    logo: "",
+    logo: null,
     name: "",
+    labCode: "",
+    password: "",
     location: "",
     status: "Active",
     contact: "",
@@ -206,60 +171,107 @@ export default function CompaniesPage() {
     [companies]
   );
 
-  const submitNewCompany = (e: FormEvent) => {
+  const filteredCompanies = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return companies;
+    return companies.filter((c) =>
+      [c.name, c.code, c.location, c.contact, c.phone, c.status, c.plan]
+        .join(" ")
+        .toLowerCase()
+        .includes(q)
+    );
+  }, [companies, search]);
+
+  useEffect(() => {
+    async function loadCompanies() {
+      setIsLoadingCompanies(true);
+      try {
+        const response = await fetch("/api/companies");
+        if (!response.ok) {
+          setCompanies([]);
+          return;
+        }
+        const data = (await response.json()) as ApiCompany[];
+        setCompanies(data.map(mapApiCompanyToRow));
+      } catch {
+        setCompanies([]);
+      } finally {
+        setIsLoadingCompanies(false);
+      }
+    }
+
+    loadCompanies();
+  }, []);
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+    setForm((f) => ({ ...f, labCode: generateCompanyCode() }));
+  }, [isModalOpen]);
+
+  const openAddCompanyModal = () => {
+    setError("");
+    setIsAddingCompany(false);
+    setForm(emptyNewCompanyForm());
+    setIsModalOpen(true);
+  };
+
+  const submitNewCompany = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
     if (!form.name.trim() || !form.location.trim() || !form.contact.trim()) {
-      setError("Name, location, and contact email are required.");
+      setError("Lab name, location, and contact email are required.");
       return;
     }
 
-    const joined = new Date().toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
+    if (!form.password.trim()) {
+      setError("Password is required.");
+      return;
+    }
 
-    const initials = form.name
-      .trim()
-      .split(/\s+/)
-      .map((n) => n[0]?.toUpperCase() ?? "")
-      .slice(0, 2)
-      .join("");
+    setIsAddingCompany(true);
+    try {
+      const response = await fetch("/api/companies", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: form.name,
+          code: form.labCode,
+          password: form.password,
+          location: form.location,
+          status: form.status,
+          contact: form.contact,
+          phone: form.phone,
+          logoUrl: form.logo,
+        }),
+      });
 
-    const newCompany: CompanyRow = {
-      id: Date.now(),
-      name: form.name.trim(),
-      initials: initials || "NC",
-      location: form.location.trim(),
-      plan: "Base",
-      users: 1,
-      samples: 0,
-      status: form.status,
-      joined,
-      contact: form.contact.trim(),
-      phone: form.phone.trim() || "N/A",
-      lastActive: "just now",
-    };
+      const payload = (await response.json()) as ApiCompany | { error?: string };
+      if (!response.ok || !isApiCompany(payload)) {
+        setError("error" in payload && payload.error ? payload.error : "Could not save company.");
+        return;
+      }
 
-    setCompanies((prev) => [newCompany, ...prev]);
-    setForm({
-      logo: "",
-      name: "",
-      location: "",
-      status: "Active",
-      contact: "",
-      phone: "",
-    });
-    setIsModalOpen(false);
+      setCompanies((prev) => [mapApiCompanyToRow(payload), ...prev]);
+      setForm(emptyNewCompanyForm());
+      setIsModalOpen(false);
+    } catch {
+      setError("Could not save company. Please try again.");
+    } finally {
+      setIsAddingCompany(false);
+    }
   };
 
   const openEditModal = (company: CompanyRow) => {
     setEditingCompanyId(company.id);
     setEditError("");
+    setIsSavingCompany(false);
     setEditForm({
-      logo: "",
+      logo: company.logoUrl,
       name: company.name,
+      labCode: company.code,
+      password: "",
       location: company.location,
       status: company.status,
       contact: company.contact,
@@ -268,40 +280,47 @@ export default function CompaniesPage() {
     setIsEditModalOpen(true);
   };
 
-  const submitEditCompany = (e: FormEvent) => {
+  const submitEditCompany = async (e: FormEvent) => {
     e.preventDefault();
     setEditError("");
     if (!editingCompanyId) return;
     if (!editForm.name.trim() || !editForm.location.trim() || !editForm.contact.trim()) {
-      setEditError("Lab Name, location, and contact email are required.");
+      setEditError("Lab name, location, and contact email are required.");
       return;
     }
 
-    const initials = editForm.name
-      .trim()
-      .split(/\s+/)
-      .map((n) => n[0]?.toUpperCase() ?? "")
-      .slice(0, 2)
-      .join("");
+    setIsSavingCompany(true);
+    try {
+      const response = await fetch(`/api/companies/${editingCompanyId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: editForm.name,
+          password: editForm.password,
+          location: editForm.location,
+          status: editForm.status,
+          contact: editForm.contact,
+          phone: editForm.phone,
+          logoUrl: editForm.logo,
+        }),
+      });
 
-    setCompanies((prev) =>
-      prev.map((c) =>
-        c.id === editingCompanyId
-          ? {
-              ...c,
-              name: editForm.name.trim(),
-              initials: initials || c.initials,
-              location: editForm.location.trim(),
-              status: editForm.status,
-              contact: editForm.contact.trim(),
-              phone: editForm.phone.trim() || "N/A",
-              lastActive: "just now",
-            }
-          : c
-      )
-    );
-    setIsEditModalOpen(false);
-    setEditingCompanyId(null);
+      const payload = (await response.json()) as ApiCompany | { error?: string };
+      if (!response.ok || !isApiCompany(payload)) {
+        setEditError("error" in payload && payload.error ? payload.error : "Could not save company.");
+        return;
+      }
+
+      setCompanies((prev) =>
+        prev.map((c) => (c.id === editingCompanyId ? mapApiCompanyToRow(payload) : c))
+      );
+      setIsEditModalOpen(false);
+      setEditingCompanyId(null);
+    } catch {
+      setEditError("Could not save company. Please try again.");
+    } finally {
+      setIsSavingCompany(false);
+    }
   };
 
   return (
@@ -320,12 +339,14 @@ export default function CompaniesPage() {
             </svg>
             <input
               type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Search companies…"
               className="h-8 w-56 rounded-lg border border-emerald-100 bg-emerald-50/50 pl-9 pr-3 text-sm text-zinc-700 placeholder:text-zinc-400 outline-none focus:border-emerald-300 focus:bg-white transition-colors"
             />
           </div>
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={openAddCompanyModal}
             className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} className="w-3.5 h-3.5">
@@ -341,125 +362,157 @@ export default function CompaniesPage() {
 
         {/* ── Overview chips ── */}
         <div className="flex flex-wrap gap-3">
-          {overviewStats.map((s) => (
-            <div
-              key={s.label}
-              className={`flex items-center gap-2.5 rounded-xl border border-emerald-100 bg-white px-4 py-2.5 shadow-sm`}
-            >
-              <span className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold ${s.bg} ${s.color}`}>
-                {s.value}
-              </span>
-              <span className="text-xs font-medium text-zinc-500">{s.label} companies</span>
-            </div>
-          ))}
+          {isLoadingCompanies
+            ? overviewStats.map((s) => (
+                <div
+                  key={s.label}
+                  className="flex items-center gap-2.5 rounded-xl border border-emerald-100 bg-white px-4 py-2.5 shadow-sm"
+                >
+                  <span className="h-8 w-8 rounded-lg bg-emerald-100 animate-pulse" />
+                  <span className="h-3 w-20 rounded bg-zinc-100 animate-pulse" />
+                </div>
+              ))
+            : overviewStats.map((s) => (
+                <div
+                  key={s.label}
+                  className={`flex items-center gap-2.5 rounded-xl border border-emerald-100 bg-white px-4 py-2.5 shadow-sm`}
+                >
+                  <span className={`flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold ${s.bg} ${s.color}`}>
+                    {s.value}
+                  </span>
+                  <span className="text-xs font-medium text-zinc-500">{s.label} companies</span>
+                </div>
+              ))}
         </div>
 
-        {/* ── Grid of company cards ── */}
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-          {companies.map((c, i) => {
-            const status = statusMeta[c.status];
-            const avatar = avatarColors[i % avatarColors.length];
-            return (
-              <article
-                key={c.id}
-                className="group relative flex flex-col rounded-2xl border border-emerald-100 bg-white p-5 shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 overflow-hidden"
-              >
-                {/* Top accent bar */}
-                <div className="absolute top-0 inset-x-0 h-0.5 bg-linear-to-r from-emerald-400 via-teal-400 to-emerald-300" />
-
-                {/* Header */}
-                <div className="flex items-start justify-between gap-3 mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white text-sm font-bold shadow-md ${avatar}`}>
-                      {c.initials}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-zinc-900 leading-tight truncate">{c.name}</p>
-                      <p className="text-[11px] text-zinc-400 mt-0.5 flex items-center gap-1">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3 h-3 shrink-0">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-                          <circle cx="12" cy="9" r="2.5" />
-                        </svg>
-                        {c.location}
+        {/* ── Companies table ── */}
+        <div className="rounded-2xl border border-emerald-100 bg-white shadow-md overflow-hidden">
+          <div className="px-5 py-4 border-b border-emerald-50">
+            <h2 className="text-sm font-bold text-zinc-900">All companies</h2>
+            <p className="text-xs text-zinc-400">
+              {isLoadingCompanies
+                ? "Loading companies…"
+                : `${filteredCompanies.length} of ${companies.length} registered labs`}
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-emerald-50 bg-emerald-50/30">
+                  <th className="px-5 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Company</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Lab code</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Location</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Users</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Samples</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Contact</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Joined</th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Last active</th>
+                  <th className="px-4 py-3 text-right text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-emerald-50/80">
+                {isLoadingCompanies ? (
+                  Array.from({ length: SKELETON_ROW_COUNT }, (_, i) => (
+                    <tr key={`skeleton-${i}`} className="animate-pulse">
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-3 min-w-[200px]">
+                          <span className="h-8 w-8 shrink-0 rounded-xl bg-emerald-100" />
+                          <div className="min-w-0 space-y-1.5 flex-1">
+                            <span className="block h-3.5 w-32 rounded bg-zinc-100" />
+                            <span className="block h-2.5 w-16 rounded bg-zinc-100" />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3"><span className="block h-5 w-24 rounded bg-emerald-50" /></td>
+                      <td className="px-4 py-3"><span className="block h-3 w-20 rounded bg-zinc-100" /></td>
+                      <td className="px-4 py-3"><span className="block h-5 w-14 rounded-full bg-zinc-100" /></td>
+                      <td className="px-4 py-3"><span className="block h-3 w-6 rounded bg-zinc-100" /></td>
+                      <td className="px-4 py-3"><span className="block h-3 w-10 rounded bg-zinc-100" /></td>
+                      <td className="px-4 py-3 min-w-[160px]">
+                        <span className="block h-3 w-28 rounded bg-zinc-100" />
+                        <span className="block h-2.5 w-20 rounded bg-zinc-100 mt-1.5" />
+                      </td>
+                      <td className="px-4 py-3"><span className="block h-3 w-16 rounded bg-zinc-100" /></td>
+                      <td className="px-4 py-3"><span className="block h-3 w-16 rounded bg-zinc-100" /></td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="inline-block h-6 w-16 rounded-lg bg-emerald-50" />
+                      </td>
+                    </tr>
+                  ))
+                ) : filteredCompanies.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="px-5 py-12 text-center">
+                      <p className="text-sm font-medium text-zinc-600">No companies found</p>
+                      <p className="text-xs text-zinc-400 mt-1">
+                        {companies.length === 0 ? "Add your first lab to get started." : "Try a different search term."}
                       </p>
+                      {companies.length === 0 ? (
+                        <button type="button" onClick={openAddCompanyModal} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors">
+                          Add company
+                        </button>
+                      ) : null}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredCompanies.map((c, i) => {
+                    const status = statusMeta[c.status];
+                    const avatar = avatarColors[i % avatarColors.length];
+                    return (
+                      <tr key={c.id} className="hover:bg-emerald-50/40 transition-colors">
+                <td className="px-5 py-3">
+                  <div className="flex items-center gap-3 min-w-[200px]">
+                    {c.logoUrl ? (
+                      <img
+                        src={c.logoUrl}
+                        alt=""
+                        className="h-8 w-8 shrink-0 rounded-xl object-cover ring-1 ring-emerald-100"
+                      />
+                    ) : (
+                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white text-[11px] font-bold ${avatar}`}>
+                        {c.initials}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-semibold text-zinc-800 truncate">{c.name}</p>
+                      <p className="text-[11px] text-zinc-400 truncate">{c.plan}</p>
                     </div>
                   </div>
-                  <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold shrink-0 ${status.badge}`}>
+                </td>
+                <td className="px-4 py-3">
+                  <code className="text-[11px] font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">{c.code}</code>
+                </td>
+                <td className="px-4 py-3 text-zinc-600 whitespace-nowrap">{c.location}</td>
+                <td className="px-4 py-3">
+                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${status.badge}`}>
                     <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
                     {c.status}
                   </span>
-                </div>
-
-                {/* Stats row */}
-                <div className="grid grid-cols-2 gap-2 mb-4">
-                  <div className="rounded-xl bg-emerald-50/70 px-3 py-2">
-                    <p className="text-base font-bold text-zinc-900 tabular-nums">{c.users}</p>
-                    <p className="text-[10px] text-zinc-400 uppercase tracking-wide">Users</p>
-                  </div>
-                  <div className="rounded-xl bg-emerald-50/70 px-3 py-2">
-                    <p className="text-base font-bold text-zinc-900 tabular-nums">{c.samples.toLocaleString()}</p>
-                    <p className="text-[10px] text-zinc-400 uppercase tracking-wide">Samples</p>
-                  </div>
-                </div>
-
-                {/* Meta row */}
-                <div className="flex items-center justify-end mb-4">
-                  <span className="text-[11px] text-zinc-400">Joined {c.joined}</span>
-                </div>
-
-                {/* Contact */}
-                <div className="space-y-1.5 mb-4 border-t border-emerald-50 pt-3">
-                  <p className="flex items-center gap-2 text-[12px] text-zinc-500 truncate">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3.5 h-3.5 shrink-0 text-emerald-400">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m22 6-10 7L2 6" />
-                    </svg>
-                    {c.contact}
-                  </p>
-                  <p className="flex items-center gap-2 text-[12px] text-zinc-500">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3.5 h-3.5 shrink-0 text-emerald-400">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.4 2 2 0 0 1 3.6 1.22h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 8.96a16 16 0 0 0 6.16 6.16l.96-.96a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-                    </svg>
-                    {c.phone}
-                  </p>
-                </div>
-
-                {/* Footer */}
-                <div className="mt-auto flex items-center justify-between pt-1">
-                  <span className="text-[11px] text-zinc-400">
-                    Active {c.lastActive}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => openEditModal(c)}
-                      className="rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors"
-                    >
-                      Manage
-                    </button>
-                    <button className="rounded-lg border border-zinc-100 bg-zinc-50 px-2.5 py-1 text-[11px] font-semibold text-zinc-500 hover:bg-zinc-100 transition-colors">
-                      ···
-                    </button>
-                  </div>
-                </div>
-              </article>
+                </td>
+                <td className="px-4 py-3 text-zinc-700 tabular-nums">{c.users}</td>
+                <td className="px-4 py-3 text-zinc-700 tabular-nums">{c.samples.toLocaleString()}</td>
+                <td className="px-4 py-3 min-w-[160px]">
+                  <p className="text-zinc-600 truncate">{c.contact}</p>
+                  <p className="text-[11px] text-zinc-400 truncate">{c.phone}</p>
+                </td>
+                <td className="px-4 py-3 text-zinc-500 whitespace-nowrap">{c.joined}</td>
+                <td className="px-4 py-3 text-zinc-500 whitespace-nowrap">{c.lastActive}</td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    type="button"
+                    onClick={() => openEditModal(c)}
+                    className="rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors"
+                  >
+                    Manage
+                  </button>
+                </td>
+              </tr>
             );
-          })}
-
-          {/* Add company card */}
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-emerald-200 bg-white/60 p-8 text-center hover:border-emerald-400 hover:bg-emerald-50/50 transition-all duration-200 min-h-[280px]"
-          >
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-6 h-6">
-                <path strokeLinecap="round" d="M12 5v14M5 12h14" />
-              </svg>
-            </span>
-            <div>
-              <p className="text-sm font-semibold text-emerald-700">Add company</p>
-              <p className="text-xs text-zinc-400 mt-0.5">Register a new lab</p>
-            </div>
-          </button>
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
 
       </main>
@@ -484,17 +537,56 @@ export default function CompaniesPage() {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, logo: e.target.files?.[0]?.name ?? "" }))
-                    }
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) {
+                        setForm((f) => ({ ...f, logo: null }));
+                        return;
+                      }
+                      try {
+                        const dataUrl = await readImageFile(file);
+                        setForm((f) => ({ ...f, logo: dataUrl }));
+                      } catch {
+                        setError("Could not read selected image.");
+                      }
+                    }}
                     className="mt-1 block w-full rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm text-zinc-700 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100"
                   />
+                  {form.logo ? (
+                    <img
+                      src={form.logo}
+                      alt=""
+                      className="mt-2 h-12 w-12 rounded-xl object-cover ring-1 ring-emerald-100"
+                    />
+                  ) : null}
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-zinc-700">Lab Name</label>
                   <input
                     value={form.name}
                     onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                    className="mt-1 h-10 w-full rounded-xl border border-emerald-100 px-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-zinc-700">Lab Code</label>
+                  <input
+                    readOnly
+                    value={form.labCode}
+                    className="mt-1 h-10 w-full rounded-xl border border-emerald-100 bg-emerald-50/50 px-3 text-sm font-mono text-zinc-700 outline-none"
+                    aria-describedby="lab-code-hint"
+                  />
+                  <p id="lab-code-hint" className="mt-1 text-[11px] text-zinc-400">
+                    Auto-generated (Gigolab + 6 characters)
+                  </p>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-zinc-700">Password</label>
+                  <input
+                    type="password"
+                    value={form.password}
+                    onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                    autoComplete="new-password"
                     className="mt-1 h-10 w-full rounded-xl border border-emerald-100 px-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
                   />
                 </div>
@@ -543,15 +635,43 @@ export default function CompaniesPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-600 hover:bg-zinc-50"
+                  disabled={isAddingCompany}
+                  className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
+                  disabled={isAddingCompany}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-70 min-w-[8.5rem]"
                 >
-                  Add company
+                  {isAddingCompany ? (
+                    <>
+                      <svg
+                        className="h-4 w-4 animate-spin"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        aria-hidden
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        />
+                      </svg>
+                      Adding…
+                    </>
+                  ) : (
+                    "Add company"
+                  )}
                 </button>
               </div>
             </form>
@@ -579,11 +699,28 @@ export default function CompaniesPage() {
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) =>
-                      setEditForm((f) => ({ ...f, logo: e.target.files?.[0]?.name ?? "" }))
-                    }
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) {
+                        setEditForm((f) => ({ ...f, logo: null }));
+                        return;
+                      }
+                      try {
+                        const dataUrl = await readImageFile(file);
+                        setEditForm((f) => ({ ...f, logo: dataUrl }));
+                      } catch {
+                        setEditError("Could not read selected image.");
+                      }
+                    }}
                     className="mt-1 block w-full rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm text-zinc-700 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100"
                   />
+                  {editForm.logo ? (
+                    <img
+                      src={editForm.logo}
+                      alt=""
+                      className="mt-2 h-12 w-12 rounded-xl object-cover ring-1 ring-emerald-100"
+                    />
+                  ) : null}
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-zinc-700">Lab Name</label>
@@ -591,6 +728,29 @@ export default function CompaniesPage() {
                     value={editForm.name}
                     onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
                     className="mt-1 h-10 w-full rounded-xl border border-emerald-100 px-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-zinc-700">Lab Code</label>
+                  <input
+                    readOnly
+                    value={editForm.labCode}
+                    className="mt-1 h-10 w-full rounded-xl border border-emerald-100 bg-emerald-50/50 px-3 text-sm font-mono text-zinc-700 outline-none"
+                    aria-describedby="edit-lab-code-hint"
+                  />
+                  <p id="edit-lab-code-hint" className="mt-1 text-[11px] text-zinc-400">
+                    Lab code cannot be changed
+                  </p>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-zinc-700">Password</label>
+                  <input
+                    type="password"
+                    value={editForm.password}
+                    onChange={(e) => setEditForm((f) => ({ ...f, password: e.target.value }))}
+                    autoComplete="new-password"
+                    placeholder="Leave blank to keep current password"
+                    className="mt-1 h-10 w-full rounded-xl border border-emerald-100 px-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 placeholder:text-zinc-400"
                   />
                 </div>
                 <div>
@@ -638,15 +798,43 @@ export default function CompaniesPage() {
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-600 hover:bg-zinc-50"
+                  disabled={isSavingCompany}
+                  className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100"
+                  disabled={isSavingCompany}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-70 min-w-[8.5rem]"
                 >
-                  Save changes
+                  {isSavingCompany ? (
+                    <>
+                      <svg
+                        className="h-4 w-4 animate-spin"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        aria-hidden
+                      >
+                        <circle
+                          className="opacity-25"
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          stroke="currentColor"
+                          strokeWidth="4"
+                        />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        />
+                      </svg>
+                      Saving…
+                    </>
+                  ) : (
+                    "Save changes"
+                  )}
                 </button>
               </div>
             </form>

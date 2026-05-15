@@ -99,3 +99,39 @@ body {
   -webkit-text-fill-color: transparent;
   animation: shimmer-text 4s linear infinite;
 }
+
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes hue-drift {
+  0%, 100% { filter: hue-rotate(0deg); }
+  50% { filter: hue-rotate(28deg); }
+}
+
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 7s ease infinite;
+}
+
+.animate-hue-drift {
+  animation: hue-drift 12s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-fade-in,
+  .animate-float-a,
+  .animate-float-b,
+  .animate-float-c,
+  .animate-spin-slow,
+  .animate-spin-rev,
+  .animate-pulse-glow,
+  .animate-scan,
+  .animate-gradient-shift,
+  .animate-hue-drift,
+  .shimmer-emerald {
+    animation: none !important;
+  }
+}

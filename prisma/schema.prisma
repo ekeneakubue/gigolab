@@ -37,6 +37,9 @@ enum UserRole {
 
 model Company {
   id            String         @id @default(cuid())
+  /// Login identifier, e.g. Gigolab-A1b2C3
+  code          String         @unique
+  passwordHash  String
   name          String
   initials      String
   location      String
