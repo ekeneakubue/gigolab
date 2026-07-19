@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 
 import {
@@ -28,7 +28,7 @@ function panelForTab(tab: CompanyTransactionTab) {
   };
 }
 
-export default function CompanyTransactionsPage() {
+function CompanyTransactionsContent() {
   const searchParams = useSearchParams();
   const active = useMemo(
     () => normalizeTabParam(searchParams.get("tab")),
@@ -69,5 +69,13 @@ export default function CompanyTransactionsPage() {
         </section>
       </main>
     </div>
+  );
+}
+
+export default function CompanyTransactionsPage() {
+  return (
+    <Suspense>
+      <CompanyTransactionsContent />
+    </Suspense>
   );
 }

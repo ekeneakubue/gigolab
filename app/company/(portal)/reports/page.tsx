@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { COMPANY_REPORT_TAB_VALUES } from "@/lib/company-reports-menu";
@@ -194,7 +194,7 @@ const panels: Record<string, Panel> = {
   },
 };
 
-export default function CompanyReportsPage() {
+function CompanyReportsContent() {
   const searchParams = useSearchParams();
   const tab = useMemo(() => normalizeTabParam(searchParams.get("tab")), [searchParams]);
   const panel = useMemo(() => panels[tab] ?? panels["dr-collective-due"], [tab]);
@@ -233,5 +233,13 @@ export default function CompanyReportsPage() {
         </section>
       </main>
     </div>
+  );
+}
+
+export default function CompanyReportsPage() {
+  return (
+    <Suspense>
+      <CompanyReportsContent />
+    </Suspense>
   );
 }

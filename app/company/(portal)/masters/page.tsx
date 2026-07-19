@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { COMPANY_MASTER_TAB_VALUES } from "@/lib/company-masters-menu";
@@ -271,7 +271,7 @@ const panels: Record<string, Panel> = {
   },
 };
 
-export default function CompanyMastersPage() {
+function CompanyMastersContent() {
   const searchParams = useSearchParams();
   const tab = useMemo(() => normalizeTabParam(searchParams.get("tab")), [searchParams]);
   const panel = useMemo(() => panels[tab] ?? panels["lab-mm-tests"], [tab]);
@@ -310,5 +310,13 @@ export default function CompanyMastersPage() {
         </section>
       </main>
     </div>
+  );
+}
+
+export default function CompanyMastersPage() {
+  return (
+    <Suspense>
+      <CompanyMastersContent />
+    </Suspense>
   );
 }
