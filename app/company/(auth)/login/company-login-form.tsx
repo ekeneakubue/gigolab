@@ -1,10 +1,11 @@
 "use client";
 
-import { FormEvent, useState, useTransition } from "react";
+import { FormEvent, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { COMPANY_CODE_PREFIX } from "@/lib/company-code";
+import { DEMO_COMPANY_PASSWORD } from "@/lib/company-demo";
 
 const loginSparks = [
   { top: "12%", left: "6%", size: 4, color: "bg-emerald-400", delay: "0s" },
@@ -19,12 +20,22 @@ export default function CompanyLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next") ?? "/company";
+  const fromDemo = searchParams.get("from") === "demo";
+  const demoLabName = searchParams.get("lab");
+  const demoLabCode = searchParams.get("code");
 
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (!fromDemo) return;
+    if (demoLabCode) setCode(demoLabCode);
+    setPassword(DEMO_COMPANY_PASSWORD);
+  }, [fromDemo, demoLabCode]);
 
   const submitLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -189,6 +200,33 @@ export default function CompanyLoginForm() {
               </div>
 
               <form onSubmit={submitLogin} className="space-y-4 px-6 py-6">
+                {fromDemo ? (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/90 px-4 py-3.5 text-sm text-emerald-950">
+                    <p className="font-semibold text-emerald-900">
+                      {demoLabName ? `Demo lab ready: ${demoLabName}` : "Your demo lab is ready"}
+                    </p>
+                    <p className="mt-1.5 text-emerald-800/90">
+                      Sign in with the credentials below to open your trial company portal.
+                    </p>
+                    <dl className="mt-3 space-y-2 rounded-lg border border-emerald-200/80 bg-white/70 px-3 py-2.5">
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-emerald-800/80">
+                          Lab code
+                        </dt>
+                        <dd className="font-mono text-sm font-semibold text-emerald-950">
+                          {demoLabCode ?? "—"}
+                        </dd>
+                      </div>
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                        <dt className="text-xs font-semibold uppercase tracking-wide text-emerald-800/80">
+                          Password
+                        </dt>
+                        <dd className="font-mono text-sm font-semibold text-emerald-950">{DEMO_COMPANY_PASSWORD}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                ) : null}
+
                 <div>
                   <label htmlFor="lab-code" className="text-sm font-semibold text-zinc-800">
                     Lab code
@@ -203,7 +241,9 @@ export default function CompanyLoginForm() {
                     className="mt-2 h-12 w-full rounded-xl border border-[#dfe4ef] bg-[#f8f9fc] px-3.5 font-mono text-base text-zinc-900 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-300 focus:bg-white focus:ring-2 focus:ring-emerald-100"
                   />
                   <p className="mt-2 text-sm text-zinc-700">
-                    Format: {COMPANY_CODE_PREFIX} followed by 6 letters or numbers
+                    {fromDemo
+                      ? "Use the demo lab code shown above"
+                      : `Format: ${COMPANY_CODE_PREFIX} followed by 6 letters or numbers`}
                   </p>
                 </div>
 
@@ -211,14 +251,41 @@ export default function CompanyLoginForm() {
                   <label htmlFor="password" className="text-sm font-semibold text-zinc-800">
                     Password
                   </label>
-                  <input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="current-password"
-                    className="mt-2 h-12 w-full rounded-xl border border-[#dfe4ef] bg-[#f8f9fc] px-3.5 text-base text-zinc-900 outline-none transition-colors focus:border-violet-300 focus:bg-white focus:ring-2 focus:ring-violet-100"
-                  />
+                  <div className="relative mt-2">
+                    <input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      autoComplete="current-password"
+                      className="h-12 w-full rounded-xl border border-[#dfe4ef] bg-[#f8f9fc] py-0 pl-3.5 pr-12 text-base text-zinc-900 outline-none transition-colors focus:border-violet-300 focus:bg-white focus:ring-2 focus:ring-violet-100"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-1 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5" aria-hidden>
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029M6.223 6.223A9.956 9.956 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411M15 12a3 3 0 11-6 0 3 3 0 016 0zM3 3l18 18"
+                          />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5" aria-hidden>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                          />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 {error ? (

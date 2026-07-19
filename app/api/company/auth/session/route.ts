@@ -11,13 +11,14 @@ export async function GET() {
 
   const record = await prisma.company.findUnique({
     where: { id: session.companyId },
-    select: { logoUrl: true },
+    select: { logoUrl: true, status: true },
   });
 
   return NextResponse.json({
     company: {
       ...session,
       logoUrl: record?.logoUrl ?? null,
+      status: record?.status ?? "Active",
     },
   });
 }

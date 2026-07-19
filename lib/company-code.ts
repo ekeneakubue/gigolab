@@ -1,3 +1,5 @@
+import { isDemoCompanyCode } from "@/lib/company-demo";
+
 const CODE_SUFFIX_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
 export const COMPANY_CODE_PREFIX = "Gigolab-";
@@ -12,5 +14,6 @@ export function generateCompanyCode(): string {
 }
 
 export function isValidCompanyCode(code: string): boolean {
+  if (isDemoCompanyCode(code)) return true;
   return new RegExp(`^Gigolab-[A-Za-z0-9]{${COMPANY_CODE_SUFFIX_LENGTH}}$`).test(code);
 }

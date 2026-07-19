@@ -76,3 +76,21 @@ export async function PATCH(request: Request, context: RouteContext) {
     return NextResponse.json({ error: message }, { status });
   }
 }
+
+export async function DELETE(_request: Request, context: RouteContext) {
+  try {
+    const { id } = await context.params;
+
+    const existing = await prisma.company.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json({ error: "Company not found." }, { status: 404 });
+    }
+
+    await prisma.company.delete({ where: { id } });
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    const { status, message } = prismaErrorResponse(error, "Failed to delete company.");
+    return NextResponse.json({ error: message }, { status });
+  }
+}

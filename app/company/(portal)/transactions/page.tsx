@@ -1,114 +1,51 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 
-type TxTab = "registration" | "transfer" | "report-receipt" | "report-dispatch" | "express";
+import {
+  COMPANY_TRANSACTION_MENU,
+  type CompanyTransactionTab,
+} from "@/lib/company-transaction-menu";
 
-const tabs: { id: TxTab; label: string; description: string }[] = [
-  {
-    id: "registration",
-    label: "Registration",
-    description: "Patient visit, orders, and sample registration.",
-  },
-  {
-    id: "transfer",
-    label: "Transfer",
-    description: "Move samples or results between locations or stages.",
-  },
-  {
-    id: "report-receipt",
-    label: "Report receipt entry",
-    description: "Log inbound reports or documents received.",
-  },
-  {
-    id: "report-dispatch",
-    label: "Report despatch entry",
-    description: "Record outbound delivery of reports to patients or partners.",
-  },
-  {
-    id: "express",
-    label: "Express entry",
-    description: "Fast-path transactional capture for urgent workflows.",
-  },
-];
+const validTabSet = new Set<string>(COMPANY_TRANSACTION_MENU.map((m) => m.tab));
 
-const panelCopy: Record<
-  TxTab,
-  { kicker: string; title: string; body: string; placeholders: string[] }
-> = {
-  registration: {
-    kicker: "Registration",
-    title: "Capture visits and ordered tests",
-    body: "Register patients, attach referrals, and generate sample identifiers. Forms and queues for registration will plug in here.",
-    placeholders: ["Walk-in queue", "Barcode assignment", "Order lines"],
-  },
-  transfer: {
-    kicker: "Transfer",
-    title: "Sample and document movement",
-    body: "Transfer specimens between benches, storage, or courier legs with audit trails.",
-    placeholders: ["Origin / destination", "Chain of custody", "Batch moves"],
-  },
-  "report-receipt": {
-    kicker: "Report receipt entry",
-    title: "Inbound report logging",
-    body: "Record physical or electronic receipt of reports from referral labs or archives.",
-    placeholders: ["Receipt timestamp", "Source facility", "Batch attach"],
-  },
-  "report-dispatch": {
-    kicker: "Report despatch entry",
-    title: "Outbound report delivery",
-    body: "Confirm dispatch channel, courier or portal delivery, and recipient acknowledgement.",
-    placeholders: ["Dispatch method", "Tracking reference", "Recipient"],
-  },
-  express: {
-    kicker: "Express entry",
-    title: "Accelerated transactional entry",
-    body: "Minimal fields for urgent registrations or transfers without leaving this screen.",
-    placeholders: ["Quick patient ID", "Priority flag", "Submit"],
-  },
-};
+function normalizeTabParam(raw: string | null): CompanyTransactionTab {
+  if (raw && validTabSet.has(raw)) {
+    return raw as CompanyTransactionTab;
+  }
+  return "registration";
+}
+
+function panelForTab(tab: CompanyTransactionTab) {
+  const entry = COMPANY_TRANSACTION_MENU.find((m) => m.tab === tab);
+  const label = entry?.label ?? "Transaction";
+  return {
+    kicker: label,
+    title: `${label} workspace`,
+    body: `Run ${label.toLowerCase()} from this screen. Forms, lists, and validation rules for this module will connect here as they are implemented.`,
+    placeholders: ["Workflow setup", "Data capture", "Review & submit"],
+  };
+}
 
 export default function CompanyTransactionsPage() {
-  const [active, setActive] = useState<TxTab>("registration");
-  const panel = panelCopy[active];
+  const searchParams = useSearchParams();
+  const active = useMemo(
+    () => normalizeTabParam(searchParams.get("tab")),
+    [searchParams]
+  );
+
+  const panel = useMemo(() => panelForTab(active), [active]);
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <header className="shrink-0 border-b border-[#dfe4ef] bg-[#f3f5fa] px-6 py-4 shadow-[0_10px_28px_-24px_rgba(15,23,42,0.65)]">
-        <div className="flex flex-col gap-4">
-          <div>
-            <h1 className="text-base font-bold text-zinc-900">Transactions</h1>
-            <p className="text-xs text-zinc-700">Select the transaction type to open its workspace.</p>
-          </div>
-
-          <div
-            className="flex flex-col gap-2 rounded-xl border border-[#dfe4ef] bg-[#eef1f6] p-1.5 shadow-[inset_0_2px_8px_rgba(15,23,42,0.06)] sm:flex-row sm:flex-wrap"
-            role="tablist"
-            aria-label="Transaction type"
-          >
-            {tabs.map((tab) => {
-              const isSelected = active === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={isSelected}
-                  onClick={() => setActive(tab.id)}
-                  className={`min-h-[44px] flex-1 rounded-lg px-3 py-2.5 text-left transition-all duration-150 sm:min-w-[min(100%,180px)] sm:flex-[1_1_calc(33.333%-0.5rem)] lg:flex-[1_1_calc(20%-0.5rem)] ${
-                    isSelected
-                      ? "bg-white text-zinc-900 shadow-[0_12px_26px_-18px_rgba(15,23,42,0.65)] ring-1 ring-[#dfe4ef]"
-                      : "text-zinc-600 hover:bg-white/70 hover:text-zinc-900"
-                  }`}
-                >
-                  <span className="block text-sm font-semibold leading-snug">{tab.label}</span>
-                  <span className={`mt-0.5 block text-[11px] leading-snug ${isSelected ? "text-zinc-700" : "text-zinc-600"}`}>
-                    {tab.description}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+        <div>
+          <h1 className="text-base font-bold text-zinc-900">Transactions</h1>
+          <p className="mt-1 text-xs text-zinc-700">
+            <span className="font-semibold text-zinc-900">{panel.kicker}</span>
+            <span className="text-zinc-600"> · Switch module from the Transactions menu in the sidebar.</span>
+          </p>
         </div>
       </header>
 

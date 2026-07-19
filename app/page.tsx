@@ -1,4 +1,5 @@
 import Link from "next/link";
+import GetDemoButton from "@/app/components/GetDemoButton";
 import Navbar from "@/app/components/Navbar";
 
 // ─── Flask path for hero animation (viewBox 0 0 480 500) ─────────────────────
@@ -838,12 +839,9 @@ export default function Home() {
               since 1998. Trusted by research teams worldwide.
             </p>
             <div className="flex items-center gap-4 flex-wrap">
-              <Link
-                href="#demo"
-                className="inline-flex items-center gap-2 bg-white text-zinc-900 font-semibold px-7 py-3.5 rounded-lg hover:bg-zinc-100 transition-colors shadow-lg"
-              >
+              <GetDemoButton className="inline-flex items-center gap-2 bg-white text-zinc-900 font-semibold px-7 py-3.5 rounded-lg hover:bg-zinc-100 transition-colors shadow-lg">
                 Get a Demo
-              </Link>
+              </GetDemoButton>
               <Link
                 href="#features"
                 className="text-sm font-medium text-zinc-400 hover:text-white transition-colors"
@@ -1178,6 +1176,26 @@ export default function Home() {
               </blockquote>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* ── Demo ── */}
+      <section id="demo" className="py-24 px-6 bg-emerald-50 border-y border-emerald-100">
+        <div className="max-w-3xl mx-auto text-center">
+          <p className="text-xs font-semibold text-emerald-700 uppercase tracking-[0.2em] mb-3">
+            Try Gigolab
+          </p>
+          <h2 className="text-3xl md:text-4xl font-bold text-zinc-900 tracking-tight mb-4">
+            Get a hands-on demo lab
+          </h2>
+          <p className="text-zinc-600 text-base leading-relaxed mb-8">
+            Spin up a trial lab with an auto-generated code like{" "}
+            <code className="font-mono text-sm bg-white px-2 py-0.5 rounded-md border border-emerald-200">Demo-a1B2</code> and
+            password <code className="font-mono text-sm bg-white px-2 py-0.5 rounded-md border border-emerald-200">demo123</code>, then sign in to the company portal.
+          </p>
+          <GetDemoButton className="inline-flex items-center gap-2 bg-zinc-900 text-white font-semibold px-7 py-3.5 rounded-lg hover:bg-zinc-800 transition-colors shadow-md">
+            Get a Demo
+          </GetDemoButton>
         </div>
       </section>
 

@@ -1,8 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
+
+import { COMPANY_MASTERS_MENU } from "@/lib/company-masters-menu";
+import { COMPANY_REPORTS_MENU } from "@/lib/company-reports-menu";
+import { COMPANY_TRANSACTION_MENU } from "@/lib/company-transaction-menu";
+
+import { useFlyoutPosition } from "./use-flyout-position";
 
 type CompanySession = {
   companyId: string;
@@ -43,6 +49,7 @@ const navItems = [
   {
     label: "Masters",
     href: "/company/masters",
+    hasSubmenu: true,
     iconColor: "text-violet-600",
     iconActive: "text-violet-700",
     icon: (
@@ -55,6 +62,7 @@ const navItems = [
   {
     label: "Transactions",
     href: "/company/transactions",
+    hasSubmenu: true,
     iconColor: "text-blue-600",
     iconActive: "text-blue-700",
     icon: (
@@ -67,6 +75,7 @@ const navItems = [
   {
     label: "Reports",
     href: "/company/reports",
+    hasSubmenu: true,
     iconColor: "text-amber-600",
     iconActive: "text-amber-700",
     icon: (
@@ -94,9 +103,58 @@ const navItems = [
 export default function CompanySidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [company, setCompany] = useState<CompanySession | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [, startTransition] = useTransition();
+  const [transactionsOpen, setTransactionsOpen] = useState(false);
+  const transactionsWrapRef = useRef<HTMLDivElement>(null);
+  const transactionsButtonRef = useRef<HTMLButtonElement>(null);
+  const transactionsPopoverStyle = useFlyoutPosition(transactionsOpen, transactionsButtonRef);
+
+  const [reportsOpen, setReportsOpen] = useState(false);
+  const reportsWrapRef = useRef<HTMLDivElement>(null);
+  const reportsButtonRef = useRef<HTMLButtonElement>(null);
+  const reportsPopoverStyle = useFlyoutPosition(reportsOpen, reportsButtonRef);
+  const [reportSubMenuState, setReportSubMenuState] = useState<{
+    itemTab: string;
+    style: CSSProperties;
+  } | null>(null);
+  const reportSubMenuRef = useRef<HTMLDivElement>(null);
+
+  const [mastersOpen, setMastersOpen] = useState(false);
+  const mastersWrapRef = useRef<HTMLDivElement>(null);
+  const mastersButtonRef = useRef<HTMLButtonElement>(null);
+  const mastersPopoverStyle = useFlyoutPosition(mastersOpen, mastersButtonRef);
+  const mastersPopoverRef = useRef<HTMLDivElement>(null);
+  const [masterSubMenuState, setMasterSubMenuState] = useState<{
+    groupTab: string;
+    style: CSSProperties;
+  } | null>(null);
+  const masterSubMenuRef = useRef<HTMLDivElement>(null);
+  const [masterSubSubMenuState, setMasterSubSubMenuState] = useState<{
+    parentTab: string;
+    style: CSSProperties;
+  } | null>(null);
+  const masterSubSubMenuRef = useRef<HTMLDivElement>(null);
+
+  const openTransactionsMenu = () => {
+    setMastersOpen(false);
+    setReportsOpen(false);
+    setTransactionsOpen((v) => !v);
+  };
+
+  const openReportsMenu = () => {
+    setMastersOpen(false);
+    setTransactionsOpen(false);
+    setReportsOpen((v) => !v);
+  };
+
+  const openMastersMenu = () => {
+    setTransactionsOpen(false);
+    setReportsOpen(false);
+    setMastersOpen((v) => !v);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -121,6 +179,59 @@ export default function CompanySidebar() {
       cancelled = true;
     };
   }, [pathname]);
+
+  useEffect(() => {
+    if (!transactionsOpen && !reportsOpen && !mastersOpen) return;
+
+    function onDocMouseDown(e: MouseEvent) {
+      const target = e.target as Node;
+      const tx = transactionsWrapRef.current;
+      const rp = reportsWrapRef.current;
+      const ms = mastersWrapRef.current;
+      if (transactionsOpen && tx && !tx.contains(target)) {
+        setTransactionsOpen(false);
+      }
+      if (reportsOpen && rp && !rp.contains(target)) {
+        setReportsOpen(false);
+      }
+      if (mastersOpen && ms && !ms.contains(target)) {
+        setMastersOpen(false);
+      }
+    }
+
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setTransactionsOpen(false);
+        setReportsOpen(false);
+        setMastersOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", onDocMouseDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocMouseDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [transactionsOpen, reportsOpen, mastersOpen]);
+
+  useEffect(() => {
+    setTransactionsOpen(false);
+    setReportsOpen(false);
+    setMastersOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!mastersOpen) setMasterSubMenuState(null);
+  }, [mastersOpen]);
+
+  useEffect(() => {
+    if (!reportsOpen) setReportSubMenuState(null);
+  }, [reportsOpen]);
+
+  useEffect(() => {
+    setMasterSubSubMenuState(null);
+  }, [masterSubMenuState]);
 
   const signOut = async () => {
     setIsSigningOut(true);
@@ -167,6 +278,490 @@ export default function CompanySidebar() {
             item.href === "/company"
               ? pathname === "/company"
               : pathname.startsWith(item.href);
+
+          if (item.label === "Masters" && item.hasSubmenu) {
+            const mastersActive = pathname.startsWith("/company/masters");
+            const currentMasterTab = searchParams.get("tab");
+            return (
+              <div key={item.href} className="relative" ref={mastersWrapRef}>
+                <button
+                  ref={mastersButtonRef}
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded={mastersOpen}
+                  onClick={openMastersMenu}
+                  className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all duration-150 ${
+                    mastersActive || mastersOpen
+                      ? "bg-white text-zinc-900 shadow-[0_12px_26px_-18px_rgba(15,23,42,0.7)] ring-1 ring-[#dfe4ef]"
+                      : "text-zinc-700 hover:bg-white/80 hover:text-zinc-900"
+                  }`}
+                >
+                  <span
+                    className={`shrink-0 transition-colors ${
+                      mastersActive || mastersOpen
+                        ? item.iconActive
+                        : `${item.iconColor} group-hover:opacity-100 opacity-90`
+                    }`}
+                  >
+                    {item.icon}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
+                  {mastersActive ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" /> : null}
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    className={`ml-auto h-4 w-4 shrink-0 text-zinc-500 transition-transform ${mastersOpen ? "rotate-90" : "-rotate-90"}`}
+                    aria-hidden
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+
+                {mastersOpen && mastersPopoverStyle ? (
+                  <div
+                    ref={mastersPopoverRef}
+                    role="menu"
+                    aria-label="Master categories"
+                    style={mastersPopoverStyle}
+                    className="z-100 w-max min-w-52 max-w-[min(20rem,calc(100vw-5rem))] overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]"
+                  >
+                    {COMPANY_MASTERS_MENU.map((group) => {
+                      const isGroupActive =
+                        mastersActive && group.children.some((c) => c.tab === currentMasterTab);
+                      const isSubOpen = masterSubMenuState?.groupTab === group.tab;
+                      return (
+                        <div key={group.tab}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              if (isSubOpen) {
+                                setMasterSubMenuState(null);
+                                return;
+                              }
+                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                              const gap = 4;
+                              const estimatedWidth = 220;
+                              let left = rect.right + gap;
+                              if (left + estimatedWidth > window.innerWidth - gap) {
+                                left = Math.max(gap, rect.left - estimatedWidth - gap);
+                              }
+                              setMasterSubMenuState({
+                                groupTab: group.tab,
+                                style: { position: "fixed", top: Math.max(8, rect.top), left },
+                              });
+                            }}
+                            className={`flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-xs font-medium transition-colors hover:bg-emerald-50 hover:text-zinc-950 ${
+                              isGroupActive || isSubOpen
+                                ? "bg-emerald-50 text-emerald-950 font-semibold"
+                                : "text-zinc-800"
+                            }`}
+                          >
+                            <span className="flex-1">{group.label}</span>
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                              className={`h-3 w-3 shrink-0 text-zinc-400 transition-transform ${isSubOpen ? "rotate-90" : ""}`}
+                              aria-hidden
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 6l6 6-6 6" />
+                            </svg>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+
+                {mastersOpen && masterSubMenuState ? (
+                  <div
+                    ref={masterSubMenuRef}
+                    role="menu"
+                    aria-label="Master sub-items"
+                    style={masterSubMenuState.style}
+                    className="z-110 w-max min-w-48 max-w-[min(18rem,calc(100vw-5rem))] overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]"
+                  >
+                    {COMPANY_MASTERS_MENU.find(
+                      (m) => m.tab === masterSubMenuState.groupTab,
+                    )?.children.map((child) => {
+                      type WithKids = { children: readonly { tab: string }[] };
+                      const hasGrandchildren = "children" in child;
+                      const grandchildren = hasGrandchildren
+                        ? (child as unknown as WithKids).children
+                        : [];
+                      const isSubSubOpen = masterSubSubMenuState?.parentTab === child.tab;
+                      const isChildActive =
+                        mastersActive &&
+                        (hasGrandchildren
+                          ? grandchildren.some((gc) => gc.tab === currentMasterTab)
+                          : child.tab === currentMasterTab);
+                      return (
+                        <button
+                          key={child.tab}
+                          type="button"
+                          role="menuitem"
+                          onClick={(e) => {
+                            if (hasGrandchildren) {
+                              if (isSubSubOpen) {
+                                setMasterSubSubMenuState(null);
+                                return;
+                              }
+                              const rect = (
+                                e.currentTarget as HTMLElement
+                              ).getBoundingClientRect();
+                              const gap = 4;
+                              const estimatedWidth = 210;
+                              let left = rect.right + gap;
+                              if (left + estimatedWidth > window.innerWidth - gap) {
+                                left = Math.max(gap, rect.left - estimatedWidth - gap);
+                              }
+                              setMasterSubSubMenuState({
+                                parentTab: child.tab,
+                                style: {
+                                  position: "fixed",
+                                  top: Math.max(8, rect.top),
+                                  left,
+                                },
+                              });
+                            } else {
+                              setMastersOpen(false);
+                              setMasterSubMenuState(null);
+                              startTransition(() => {
+                                router.push(`/company/masters?tab=${child.tab}`);
+                              });
+                            }
+                          }}
+                          className={`flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-xs font-medium transition-colors hover:bg-emerald-50 hover:text-zinc-950 ${
+                            isChildActive || isSubSubOpen
+                              ? "bg-emerald-50 text-emerald-950 font-semibold"
+                              : "text-zinc-800"
+                          }`}
+                        >
+                          <span className="flex-1">{child.label}</span>
+                          {hasGrandchildren && (
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                              className={`h-3 w-3 shrink-0 text-zinc-400 transition-transform ${isSubSubOpen ? "rotate-90" : ""}`}
+                              aria-hidden
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M9 6l6 6-6 6"
+                              />
+                            </svg>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+
+                {mastersOpen && masterSubMenuState && masterSubSubMenuState ? (
+                  <div
+                    ref={masterSubSubMenuRef}
+                    role="menu"
+                    aria-label="Master leaf items"
+                    style={masterSubSubMenuState.style}
+                    className="z-120 w-max min-w-44 max-w-[min(18rem,calc(100vw-5rem))] overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]"
+                  >
+                    {(() => {
+                      const group = COMPANY_MASTERS_MENU.find(
+                        (m) => m.tab === masterSubMenuState.groupTab,
+                      );
+                      const parent = group?.children.find(
+                        (c) => c.tab === masterSubSubMenuState.parentTab,
+                      );
+                      const leaves =
+                        parent && "children" in parent
+                          ? (
+                              parent as unknown as {
+                                children: readonly { label: string; tab: string }[];
+                              }
+                            ).children
+                          : [];
+                      return leaves.map((leaf) => (
+                        <button
+                          key={leaf.tab}
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setMastersOpen(false);
+                            setMasterSubMenuState(null);
+                            setMasterSubSubMenuState(null);
+                            startTransition(() => {
+                              router.push(`/company/masters?tab=${leaf.tab}`);
+                            });
+                          }}
+                          className={`flex w-full px-3 py-2.5 text-left text-xs font-medium transition-colors hover:bg-emerald-50 hover:text-zinc-950 ${
+                            mastersActive && currentMasterTab === leaf.tab
+                              ? "bg-emerald-50 text-emerald-950 font-semibold"
+                              : "text-zinc-800"
+                          }`}
+                        >
+                          {leaf.label}
+                        </button>
+                      ));
+                    })()}
+                  </div>
+                ) : null}
+              </div>
+            );
+          }
+
+          if (item.label === "Transactions" && item.hasSubmenu) {
+            const txActive = pathname.startsWith("/company/transactions");
+            const currentTab = searchParams.get("tab");
+            return (
+              <div key={item.href} className="relative" ref={transactionsWrapRef}>
+                <button
+                  ref={transactionsButtonRef}
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded={transactionsOpen}
+                  onClick={openTransactionsMenu}
+                  className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all duration-150 ${
+                    txActive || transactionsOpen
+                      ? "bg-white text-zinc-900 shadow-[0_12px_26px_-18px_rgba(15,23,42,0.7)] ring-1 ring-[#dfe4ef]"
+                      : "text-zinc-700 hover:bg-white/80 hover:text-zinc-900"
+                  }`}
+                >
+                  <span
+                    className={`shrink-0 transition-colors ${
+                      txActive || transactionsOpen
+                        ? item.iconActive
+                        : `${item.iconColor} group-hover:opacity-100 opacity-90`
+                    }`}
+                  >
+                    {item.icon}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
+                  {txActive ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" /> : null}
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    className={`ml-auto h-4 w-4 shrink-0 text-zinc-500 transition-transform ${transactionsOpen ? "rotate-90" : "-rotate-90"}`}
+                    aria-hidden
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+
+                {transactionsOpen && transactionsPopoverStyle ? (
+                  <div
+                    role="menu"
+                    aria-label="Transaction types"
+                    style={transactionsPopoverStyle}
+                    className="z-100 w-max min-w-52 max-w-[min(20rem,calc(100vw-5rem))] overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]"
+                  >
+                    {COMPANY_TRANSACTION_MENU.map((entry) => (
+                      <button
+                        key={entry.tab}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          setTransactionsOpen(false);
+                          startTransition(() => {
+                            router.push(`/company/transactions?tab=${entry.tab}`);
+                          });
+                        }}
+                        className={`flex w-full px-3 py-2.5 text-left text-xs font-medium transition-colors hover:bg-emerald-50 hover:text-zinc-950 ${
+                          txActive && (currentTab ?? "registration") === entry.tab
+                            ? "bg-emerald-50 text-emerald-950 font-semibold"
+                            : "text-zinc-800"
+                        }`}
+                      >
+                        {entry.label}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            );
+          }
+
+          if (item.label === "Reports" && item.hasSubmenu) {
+            const reportsActive = pathname.startsWith("/company/reports");
+            const currentReportTab = searchParams.get("tab");
+            return (
+              <div key={item.href} className="relative" ref={reportsWrapRef}>
+                <button
+                  ref={reportsButtonRef}
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded={reportsOpen}
+                  onClick={openReportsMenu}
+                  className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all duration-150 ${
+                    reportsActive || reportsOpen
+                      ? "bg-white text-zinc-900 shadow-[0_12px_26px_-18px_rgba(15,23,42,0.7)] ring-1 ring-[#dfe4ef]"
+                      : "text-zinc-700 hover:bg-white/80 hover:text-zinc-900"
+                  }`}
+                >
+                  <span
+                    className={`shrink-0 transition-colors ${
+                      reportsActive || reportsOpen
+                        ? item.iconActive
+                        : `${item.iconColor} group-hover:opacity-100 opacity-90`
+                    }`}
+                  >
+                    {item.icon}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
+                  {reportsActive ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" /> : null}
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    className={`ml-auto h-4 w-4 shrink-0 text-zinc-500 transition-transform ${reportsOpen ? "rotate-90" : "-rotate-90"}`}
+                    aria-hidden
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+
+                {reportsOpen && reportsPopoverStyle ? (
+                  <div
+                    role="menu"
+                    aria-label="Report categories"
+                    style={reportsPopoverStyle}
+                    className="z-100 w-max min-w-52 max-w-[min(20rem,calc(100vw-5rem))] overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]"
+                  >
+                    {COMPANY_REPORTS_MENU.map((entry) => {
+                      type WithKids = { children: readonly { tab: string }[] };
+                      const hasChildren = "children" in entry;
+                      const children = hasChildren
+                        ? (entry as unknown as WithKids).children
+                        : [];
+                      const isSubOpen = reportSubMenuState?.itemTab === entry.tab;
+                      const isEntryActive =
+                        reportsActive &&
+                        (hasChildren
+                          ? children.some((c) => c.tab === currentReportTab)
+                          : entry.tab === currentReportTab);
+                      return (
+                        <button
+                          key={entry.tab}
+                          type="button"
+                          role="menuitem"
+                          onClick={(e) => {
+                            if (hasChildren) {
+                              if (isSubOpen) {
+                                setReportSubMenuState(null);
+                                return;
+                              }
+                              const rect = (
+                                e.currentTarget as HTMLElement
+                              ).getBoundingClientRect();
+                              const gap = 4;
+                              const estimatedWidth = 240;
+                              let left = rect.right + gap;
+                              if (left + estimatedWidth > window.innerWidth - gap) {
+                                left = Math.max(gap, rect.left - estimatedWidth - gap);
+                              }
+                              setReportSubMenuState({
+                                itemTab: entry.tab,
+                                style: {
+                                  position: "fixed",
+                                  top: Math.max(8, rect.top),
+                                  left,
+                                },
+                              });
+                            } else {
+                              setReportsOpen(false);
+                              startTransition(() => {
+                                router.push(`/company/reports?tab=${entry.tab}`);
+                              });
+                            }
+                          }}
+                          className={`flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-xs font-medium transition-colors hover:bg-emerald-50 hover:text-zinc-950 ${
+                            isEntryActive || isSubOpen
+                              ? "bg-emerald-50 text-emerald-950 font-semibold"
+                              : "text-zinc-800"
+                          }`}
+                        >
+                          <span className="flex-1">{entry.label}</span>
+                          {hasChildren && (
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                              className={`h-3 w-3 shrink-0 text-zinc-400 transition-transform ${isSubOpen ? "rotate-90" : ""}`}
+                              aria-hidden
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M9 6l6 6-6 6"
+                              />
+                            </svg>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+
+                {reportsOpen && reportSubMenuState ? (
+                  <div
+                    ref={reportSubMenuRef}
+                    role="menu"
+                    aria-label="Report sub-items"
+                    style={reportSubMenuState.style}
+                    className="z-110 w-max overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]"
+                  >
+                    {(() => {
+                      const parent = COMPANY_REPORTS_MENU.find(
+                        (m) => m.tab === reportSubMenuState.itemTab,
+                      );
+                      const leaves =
+                        parent && "children" in parent
+                          ? (
+                              parent as unknown as {
+                                children: readonly { label: string; tab: string }[];
+                              }
+                            ).children
+                          : [];
+                      return (
+                        <div className="grid grid-cols-2">
+                          {leaves.map((leaf) => (
+                            <button
+                              key={leaf.tab}
+                              type="button"
+                              role="menuitem"
+                              onClick={() => {
+                                setReportsOpen(false);
+                                setReportSubMenuState(null);
+                                startTransition(() => {
+                                  router.push(`/company/reports?tab=${leaf.tab}`);
+                                });
+                              }}
+                              className={`flex w-full px-3 py-2.5 text-left text-xs font-medium transition-colors hover:bg-emerald-50 hover:text-zinc-950 ${
+                                reportsActive && currentReportTab === leaf.tab
+                                  ? "bg-emerald-50 text-emerald-950 font-semibold"
+                                  : "text-zinc-800"
+                              }`}
+                            >
+                              {leaf.label}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                ) : null}
+              </div>
+            );
+          }
 
           return (
             <Link

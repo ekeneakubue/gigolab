@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import GetDemoButton from "@/app/components/GetDemoButton";
+
 const navLinks = [
   { label: "Features", href: "/features" },
   { label: "Services", href: "/#services" },
@@ -35,12 +37,9 @@ export default function Navbar({ activePath = "/" }: { activePath?: string }) {
             ))}
           </nav>
         </div>
-        <Link
-          href="/#demo"
-          className="bg-zinc-900 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-zinc-700 transition-colors shadow-sm"
-        >
+        <GetDemoButton className="bg-zinc-900 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-zinc-700 transition-colors shadow-sm">
           Get a Demo
-        </Link>
+        </GetDemoButton>
       </div>
     </header>
   );

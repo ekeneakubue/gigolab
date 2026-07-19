@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma, type AccountStatus, type UserRole } from "@prisma/client";
 
 import { hashPassword } from "@/lib/password";
+import { getOrCreatePlatformCompany } from "@/lib/platform-company";
 import { prisma } from "@/lib/prisma";
 
 type ApiUserResponse = {
@@ -103,8 +104,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "A user with this email already exists." }, { status: 409 });
     }
 
+    const platformCompany = await getOrCreatePlatformCompany();
+
     const created = await prisma.user.create({
       data: {
+        companyId: platformCompany.id,
         name,
         initials: toInitials(name),
         email,

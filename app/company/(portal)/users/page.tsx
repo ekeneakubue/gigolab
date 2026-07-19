@@ -2,6 +2,11 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
+import { readImageFile } from "@/lib/read-image-file";
+
+const userInputClass =
+  "mt-1.5 h-10 w-full rounded-xl border border-emerald-200 px-3 text-base font-medium text-zinc-900 placeholder:text-zinc-600 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100";
+
 type CompanyUser = {
   id: string;
   name: string;
@@ -40,14 +45,22 @@ type NewUserForm = {
 
 const roleOptions = ["Staff", "Technician", "Receptionist", "Supervisor", "Lab Manager"] as const;
 
-const emptyForm: NewUserForm = {
-  image: null,
-  name: "",
-  email: "",
-  password: "",
-  role: "Staff",
-  status: "Active",
-};
+type CompanyAccountStatus = "Active" | "Trial" | "Inactive";
+
+function defaultNewUserStatus(companyStatus: CompanyAccountStatus | null): CompanyAccountStatus {
+  return companyStatus === "Trial" ? "Trial" : "Active";
+}
+
+function emptyUserForm(companyStatus: CompanyAccountStatus | null): NewUserForm {
+  return {
+    image: null,
+    name: "",
+    email: "",
+    password: "",
+    role: "Staff",
+    status: defaultNewUserStatus(companyStatus),
+  };
+}
 
 function isCompanyUser(payload: CompanyUser | { error?: string }): payload is CompanyUser {
   return "id" in payload && typeof payload.id === "string";
@@ -59,9 +72,35 @@ export default function CompanyUsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [form, setForm] = useState<NewUserForm>(emptyForm);
+  const [companyStatus, setCompanyStatus] = useState<CompanyAccountStatus | null>(null);
+  const [form, setForm] = useState<NewUserForm>(() => emptyUserForm(null));
   const [formError, setFormError] = useState("");
   const [isAddingUser, setIsAddingUser] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCompanyStatus() {
+      try {
+        const response = await fetch("/api/company/auth/session");
+        if (cancelled || !response.ok) return;
+        const data = (await response.json()) as {
+          company: { status?: CompanyAccountStatus } | null;
+        };
+        if (!cancelled && data.company?.status) {
+          setCompanyStatus(data.company.status);
+        }
+      } catch {
+        // keep default Active for new users
+      }
+    }
+
+    loadCompanyStatus();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -106,7 +145,8 @@ export default function CompanyUsersPage() {
   const openAddUserModal = () => {
     setFormError("");
     setIsAddingUser(false);
-    setForm(emptyForm);
+    setShowPassword(false);
+    setForm(emptyUserForm(companyStatus));
     setIsModalOpen(true);
   };
 
@@ -128,7 +168,7 @@ export default function CompanyUsersPage() {
           email: form.email,
           password: form.password,
           role: form.role,
-          status: form.status,
+          status: companyStatus === "Trial" ? "Trial" : form.status,
           imageUrl: form.image,
         }),
       });
@@ -140,7 +180,7 @@ export default function CompanyUsersPage() {
       }
 
       setUsers((prev) => [payload, ...prev]);
-      setForm(emptyForm);
+      setForm(emptyUserForm(companyStatus));
       setIsModalOpen(false);
     } catch {
       setFormError("Could not save user. Please try again.");
@@ -307,73 +347,114 @@ export default function CompanyUsersPage() {
 
       {isModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-xl rounded-2xl border border-[#dfe4ef] bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#e8ecf5] px-5 py-4">
-              <h2 className="text-sm font-bold text-zinc-900">Add New User</h2>
+          <div className="w-full max-w-5xl rounded-2xl border border-emerald-100 bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-3.5 border-b border-emerald-50">
+              <div>
+                <h2 className="text-lg font-bold text-zinc-950">Add New User</h2>
+                <p className="text-sm font-medium text-zinc-800 mt-1">Add a staff member to your lab</p>
+              </div>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="rounded-lg border border-zinc-200 px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-50"
+                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
               >
                 Close
               </button>
             </div>
-            <form onSubmit={submitNewUser} className="space-y-4 p-5">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="md:col-span-2">
-                  <label className="text-xs font-semibold text-zinc-700">Upload image</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) {
-                        setForm((f) => ({ ...f, image: null }));
-                        return;
-                      }
-                      const reader = new FileReader();
-                      reader.onload = () => {
-                        const result = typeof reader.result === "string" ? reader.result : null;
-                        setForm((f) => ({ ...f, image: result }));
-                      };
-                      reader.onerror = () => setFormError("Could not read selected image.");
-                      reader.readAsDataURL(file);
-                    }}
-                    className="mt-1 block w-full rounded-xl border border-[#dfe4ef] bg-white px-3 py-2 text-sm text-zinc-700 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-indigo-700 hover:file:bg-indigo-100"
-                  />
+            <form onSubmit={submitNewUser} className="px-6 py-4 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
+                <div className="sm:col-span-1 flex flex-col items-center text-center">
+                  <p className="text-sm font-bold text-zinc-950">Upload image</p>
+                  <label
+                    className="group relative mx-auto mt-2 flex h-16 w-16 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-emerald-300 bg-emerald-50 text-emerald-700 shadow-sm transition-colors hover:border-emerald-400 hover:bg-emerald-100 focus-within:ring-2 focus-within:ring-emerald-200 focus-within:ring-offset-2"
+                    aria-label="Upload image"
+                  >
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) {
+                          setForm((f) => ({ ...f, image: null }));
+                          return;
+                        }
+                        try {
+                          const dataUrl = await readImageFile(file);
+                          setForm((f) => ({ ...f, image: dataUrl }));
+                        } catch {
+                          setFormError("Could not read selected image.");
+                        }
+                      }}
+                    />
+                    {form.image ? (
+                      <>
+                        <img src={form.image} alt="" className="h-full w-full object-cover" />
+                        <span className="absolute inset-0 flex items-center justify-center bg-zinc-900/0 text-white opacity-0 transition-opacity group-hover:bg-zinc-900/40 group-hover:opacity-100">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="h-6 w-6">
+                            <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+                          </svg>
+                        </span>
+                      </>
+                    ) : (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="h-7 w-7" aria-hidden>
+                        <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+                      </svg>
+                    )}
+                  </label>
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-700">Full name</label>
+                <div className="sm:col-span-1 lg:col-span-2">
+                  <label className="text-sm font-bold text-zinc-950">Full name</label>
                   <input
                     value={form.name}
                     onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                    className="mt-1 h-10 w-full rounded-xl border border-[#dfe4ef] px-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                    className={userInputClass}
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-zinc-700">Email</label>
+                  <label className="text-sm font-bold text-zinc-950">Email</label>
                   <input
                     type="email"
                     value={form.email}
                     onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                    className="mt-1 h-10 w-full rounded-xl border border-[#dfe4ef] px-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                    className={userInputClass}
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-zinc-700">Password</label>
-                  <input
-                    type="password"
-                    value={form.password}
-                    onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                    className="mt-1 h-10 w-full rounded-xl border border-[#dfe4ef] px-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-                  />
+                  <label className="text-sm font-bold text-zinc-950">Password</label>
+                  <div className="relative mt-1.5">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={form.password}
+                      onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                      autoComplete="new-password"
+                      className={`${userInputClass} mt-0 pr-12`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-500 hover:bg-emerald-50 hover:text-zinc-800"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5" aria-hidden>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029M6.223 6.223A9.956 9.956 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411M15 12a3 3 0 11-6 0 3 3 0 016 0zM3 3l18 18" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5" aria-hidden>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-zinc-700">Role</label>
+                  <label className="text-sm font-bold text-zinc-950">Role</label>
                   <select
                     value={form.role}
                     onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
-                    className="mt-1 h-10 w-full rounded-xl border border-[#dfe4ef] px-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                    className={userInputClass}
                   >
                     {roleOptions.map((role) => (
                       <option key={role} value={role}>
@@ -383,33 +464,42 @@ export default function CompanyUsersPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-zinc-700">Status</label>
+                  <label className="text-sm font-bold text-zinc-950">Status</label>
                   <select
                     value={form.status}
+                    disabled={companyStatus === "Trial"}
                     onChange={(e) =>
                       setForm((f) => ({ ...f, status: e.target.value as NewUserForm["status"] }))
                     }
-                    className="mt-1 h-10 w-full rounded-xl border border-[#dfe4ef] px-3 text-sm outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
+                    className={`${userInputClass} disabled:cursor-not-allowed disabled:bg-amber-50 disabled:text-amber-900 disabled:opacity-100`}
                   >
                     <option>Active</option>
                     <option>Trial</option>
                     <option>Inactive</option>
                   </select>
+                  {companyStatus === "Trial" ? (
+                    <p className="mt-1.5 text-sm font-medium text-amber-800">
+                      Trial labs can only add users with Trial status.
+                    </p>
+                  ) : null}
                 </div>
               </div>
-              {formError ? <p className="text-xs font-medium text-rose-700">{formError}</p> : null}
-              <div className="flex justify-end gap-3 pt-2">
+
+              {formError ? <p className="text-sm font-semibold text-red-700">{formError}</p> : null}
+
+              <div className="flex justify-end gap-3 pt-1">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-600 hover:bg-zinc-50"
+                  disabled={isAddingUser}
+                  className="rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-base font-bold text-zinc-900 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isAddingUser}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-70 min-w-[7.5rem]"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2.5 text-base font-bold text-emerald-900 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-70 min-w-36"
                 >
                   {isAddingUser ? (
                     <>

@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
+import { CompanyFormFields } from "@/app/components/CompanyFormFields";
 import { generateCompanyCode } from "@/lib/company-code";
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type CompanyRow = {
   id: string | number;
@@ -119,7 +120,7 @@ function mapApiCompanyToRow(company: ApiCompany): CompanyRow {
   };
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const SKELETON_ROW_COUNT = 6;
 
@@ -134,6 +135,7 @@ export default function CompaniesPage() {
   const [isAddingCompany, setIsAddingCompany] = useState(false);
   const [editError, setEditError] = useState("");
   const [isSavingCompany, setIsSavingCompany] = useState(false);
+  const [deletingCompanyId, setDeletingCompanyId] = useState<string | number | null>(null);
   const [form, setForm] = useState<NewCompanyForm>(emptyNewCompanyForm);
   const [editForm, setEditForm] = useState<NewCompanyForm>({
     logo: null,
@@ -323,10 +325,37 @@ export default function CompaniesPage() {
     }
   };
 
+  const deleteCompany = async (company: CompanyRow) => {
+    const confirmed = window.confirm(
+      `Delete "${company.name}"? Linked users will be unassigned from this lab. This cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    setDeletingCompanyId(company.id);
+    try {
+      const response = await fetch(`/api/companies/${company.id}`, { method: "DELETE" });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        window.alert(payload.error ?? "Could not delete company.");
+        return;
+      }
+
+      setCompanies((prev) => prev.filter((c) => c.id !== company.id));
+      if (editingCompanyId === company.id) {
+        setIsEditModalOpen(false);
+        setEditingCompanyId(null);
+      }
+    } catch {
+      window.alert("Could not delete company. Please try again.");
+    } finally {
+      setDeletingCompanyId(null);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
 
-      {/* ── Top bar ── */}
+      {/* â”€â”€ Top bar â”€â”€ */}
       <header className="shrink-0 flex items-center justify-between gap-4 bg-white border-b border-emerald-100 px-6 py-3.5 shadow-sm">
         <div>
           <h1 className="text-base font-bold text-zinc-900">Companies</h1>
@@ -341,7 +370,7 @@ export default function CompaniesPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search companies…"
+              placeholder="Search companiesâ€¦"
               className="h-8 w-56 rounded-lg border border-emerald-100 bg-emerald-50/50 pl-9 pr-3 text-sm text-zinc-700 placeholder:text-zinc-400 outline-none focus:border-emerald-300 focus:bg-white transition-colors"
             />
           </div>
@@ -357,10 +386,10 @@ export default function CompaniesPage() {
         </div>
       </header>
 
-      {/* ── Body ── */}
+      {/* â”€â”€ Body â”€â”€ */}
       <main className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
 
-        {/* ── Overview chips ── */}
+        {/* â”€â”€ Overview chips â”€â”€ */}
         <div className="flex flex-wrap gap-3">
           {isLoadingCompanies
             ? overviewStats.map((s) => (
@@ -385,13 +414,13 @@ export default function CompaniesPage() {
               ))}
         </div>
 
-        {/* ── Companies table ── */}
+        {/* â”€â”€ Companies table â”€â”€ */}
         <div className="rounded-2xl border border-emerald-100 bg-white shadow-md overflow-hidden">
           <div className="px-5 py-4 border-b border-emerald-50">
             <h2 className="text-sm font-bold text-zinc-900">All companies</h2>
             <p className="text-xs text-zinc-400">
               {isLoadingCompanies
-                ? "Loading companies…"
+                ? "Loading companiesâ€¦"
                 : `${filteredCompanies.length} of ${companies.length} registered labs`}
             </p>
           </div>
@@ -498,13 +527,48 @@ export default function CompaniesPage() {
                 <td className="px-4 py-3 text-zinc-500 whitespace-nowrap">{c.joined}</td>
                 <td className="px-4 py-3 text-zinc-500 whitespace-nowrap">{c.lastActive}</td>
                 <td className="px-4 py-3 text-right">
-                  <button
-                    type="button"
-                    onClick={() => openEditModal(c)}
-                    className="rounded-lg border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors"
-                  >
-                    Manage
-                  </button>
+                  <div className="inline-flex items-center justify-end gap-1">
+                    <button
+                      type="button"
+                      onClick={() => openEditModal(c)}
+                      aria-label={`Edit ${c.name}`}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4" aria-hidden>
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteCompany(c)}
+                      disabled={deletingCompanyId === c.id}
+                      aria-label={`Delete ${c.name}`}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-100 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {deletingCompanyId === c.id ? (
+                        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden>
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4" aria-hidden>
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16"
+                          />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </td>
               </tr>
             );
@@ -519,131 +583,45 @@ export default function CompaniesPage() {
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-2xl rounded-2xl border border-emerald-100 bg-white shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-emerald-50">
-              <h2 className="text-sm font-bold text-zinc-900">Add New Company</h2>
+          <div className="w-full max-w-5xl rounded-2xl border border-emerald-100 bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-3.5 border-b border-emerald-50">
+              <div>
+                <h2 className="text-lg font-bold text-zinc-950">Add New Company</h2>
+                <p className="text-sm font-medium text-zinc-800 mt-1">Register a new lab on Gigolab</p>
+              </div>
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="rounded-lg border border-zinc-200 px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-50"
+                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
               >
                 Close
               </button>
             </div>
 
-            <form onSubmit={submitNewCompany} className="p-5 space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="text-xs font-semibold text-zinc-700">Upload logo</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) {
-                        setForm((f) => ({ ...f, logo: null }));
-                        return;
-                      }
-                      try {
-                        const dataUrl = await readImageFile(file);
-                        setForm((f) => ({ ...f, logo: dataUrl }));
-                      } catch {
-                        setError("Could not read selected image.");
-                      }
-                    }}
-                    className="mt-1 block w-full rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm text-zinc-700 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100"
-                  />
-                  {form.logo ? (
-                    <img
-                      src={form.logo}
-                      alt=""
-                      className="mt-2 h-12 w-12 rounded-xl object-cover ring-1 ring-emerald-100"
-                    />
-                  ) : null}
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-700">Lab Name</label>
-                  <input
-                    value={form.name}
-                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                    className="mt-1 h-10 w-full rounded-xl border border-emerald-100 px-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-700">Lab Code</label>
-                  <input
-                    readOnly
-                    value={form.labCode}
-                    className="mt-1 h-10 w-full rounded-xl border border-emerald-100 bg-emerald-50/50 px-3 text-sm font-mono text-zinc-700 outline-none"
-                    aria-describedby="lab-code-hint"
-                  />
-                  <p id="lab-code-hint" className="mt-1 text-[11px] text-zinc-400">
-                    Auto-generated (Gigolab + 6 characters)
-                  </p>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-700">Password</label>
-                  <input
-                    type="password"
-                    value={form.password}
-                    onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-                    autoComplete="new-password"
-                    className="mt-1 h-10 w-full rounded-xl border border-emerald-100 px-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-700">Location</label>
-                  <input
-                    value={form.location}
-                    onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
-                    className="mt-1 h-10 w-full rounded-xl border border-emerald-100 px-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-700">Status</label>
-                  <select
-                    value={form.status}
-                    onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as NewCompanyForm["status"] }))}
-                    className="mt-1 h-10 w-full rounded-xl border border-emerald-100 px-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Trial">Trial</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-700">Contact email</label>
-                  <input
-                    type="email"
-                    value={form.contact}
-                    onChange={(e) => setForm((f) => ({ ...f, contact: e.target.value }))}
-                    className="mt-1 h-10 w-full rounded-xl border border-emerald-100 px-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-700">Phone</label>
-                  <input
-                    value={form.phone}
-                    onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-                    className="mt-1 h-10 w-full rounded-xl border border-emerald-100 px-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
-                  />
-                </div>
-              </div>
+            <form onSubmit={submitNewCompany} className="px-6 py-4 space-y-3">
+              <CompanyFormFields
+                form={form}
+                onChange={(updater) => setForm(updater)}
+                onImageError={setError}
+                infoLine="Lab code is auto-generated (Gigolab + 6 characters). Set an initial password for company portal sign-in."
+                showPasswordToggle
+              />
 
-              {error ? <p className="text-xs text-red-600">{error}</p> : null}
+              {error ? <p className="text-sm font-semibold text-red-700">{error}</p> : null}
 
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex justify-end gap-3 pt-1">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   disabled={isAddingCompany}
-                  className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-base font-bold text-zinc-900 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isAddingCompany}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-70 min-w-[8.5rem]"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2.5 text-base font-bold text-emerald-900 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-70 min-w-36"
                 >
                   {isAddingCompany ? (
                     <>
@@ -667,7 +645,7 @@ export default function CompaniesPage() {
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                         />
                       </svg>
-                      Adding…
+                      Adding...
                     </>
                   ) : (
                     "Add company"
@@ -830,7 +808,7 @@ export default function CompaniesPage() {
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                         />
                       </svg>
-                      Saving…
+                      Savingâ€¦
                     </>
                   ) : (
                     "Save changes"

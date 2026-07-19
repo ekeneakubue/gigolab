@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+
+import GetDemoButton from "@/app/components/GetDemoButton";
 import Navbar from "@/app/components/Navbar";
 
 export const metadata: Metadata = {
@@ -444,12 +446,9 @@ export default function FeaturesPage() {
             Book a demo and we&apos;ll walk you through every feature live.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link
-              href="/#demo"
-              className="inline-flex items-center gap-2 rounded-xl bg-white text-emerald-700 font-semibold px-7 py-3.5 text-sm hover:bg-emerald-50 transition-colors shadow-lg"
-            >
+            <GetDemoButton className="inline-flex items-center gap-2 rounded-xl bg-white text-emerald-700 font-semibold px-7 py-3.5 text-sm hover:bg-emerald-50 transition-colors shadow-lg">
               Get a Demo
-            </Link>
+            </GetDemoButton>
             <Link
               href="/"
               className="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 text-white font-semibold px-7 py-3.5 text-sm hover:bg-white/20 transition-colors"

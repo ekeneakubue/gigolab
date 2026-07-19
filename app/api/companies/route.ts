@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { CompanyPlan, type AccountStatus } from "@prisma/client";
 
+import { generateDemoCompanyCode, isDemoCompanyCode } from "@/lib/company-demo";
 import { generateCompanyCode, isValidCompanyCode } from "@/lib/company-code";
 import { hashPassword } from "@/lib/password";
 import { isUniqueConstraintError, prismaErrorResponse } from "@/lib/prisma-errors";
@@ -21,6 +22,12 @@ function buildCodeCandidates(preferred?: string) {
   const candidates: string[] = [];
   if (preferred && isValidCompanyCode(preferred)) {
     candidates.push(preferred);
+  }
+  if (preferred && isDemoCompanyCode(preferred)) {
+    for (let attempt = 0; attempt < 12; attempt++) {
+      candidates.push(generateDemoCompanyCode());
+    }
+    return candidates;
   }
   for (let attempt = 0; attempt < 12; attempt++) {
     candidates.push(generateCompanyCode());
@@ -77,9 +84,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const status = body.status ?? "Active";
+    const requestedCode = body.code?.trim();
+    const status = body.status ?? (requestedCode && isDemoCompanyCode(requestedCode) ? "Trial" : "Active");
     const passwordHash = hashPassword(password);
-    const candidates = buildCodeCandidates(body.code?.trim());
+    const candidates = buildCodeCandidates(requestedCode);
 
     for (const code of candidates) {
       try {
@@ -100,7 +108,9 @@ export async function POST(request: Request) {
 
         return NextResponse.json(created, { status: 201 });
       } catch (error) {
-        if (isUniqueConstraintError(error, "code")) continue;
+        if (isUniqueConstraintError(error, "code")) {
+          continue;
+        }
         throw error;
       }
     }
