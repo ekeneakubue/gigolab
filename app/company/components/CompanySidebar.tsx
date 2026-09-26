@@ -137,6 +137,16 @@ export default function CompanySidebar() {
     style: CSSProperties;
   } | null>(null);
   const masterSubSubMenuRef = useRef<HTMLDivElement>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+    const sync = () => setIsMobile(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
 
   const openTransactionsMenu = () => {
     setMastersOpen(false);
@@ -204,6 +214,7 @@ export default function CompanySidebar() {
         setTransactionsOpen(false);
         setReportsOpen(false);
         setMastersOpen(false);
+        setMobileOpen(false);
       }
     }
 
@@ -215,11 +226,24 @@ export default function CompanySidebar() {
     };
   }, [transactionsOpen, reportsOpen, mastersOpen]);
 
+  const searchKey = searchParams.toString();
+
   useEffect(() => {
     setTransactionsOpen(false);
     setReportsOpen(false);
     setMastersOpen(false);
-  }, [pathname]);
+    setMobileOpen(false);
+  }, [pathname, searchKey]);
+
+  const menuFlyoutClass = isMobile
+    ? "relative mt-1 max-h-72 w-full overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1"
+    : "z-100 w-max min-w-52 max-w-[min(20rem,calc(100vw-5rem))] overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]";
+  const nestedFlyoutClass = isMobile
+    ? "relative mt-1 max-h-64 w-full overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1"
+    : "z-110 w-max min-w-48 max-w-[min(18rem,calc(100vw-5rem))] overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]";
+  const leafFlyoutClass = isMobile
+    ? "relative mt-1 max-h-64 w-full overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1"
+    : "z-120 w-max min-w-44 max-w-[min(18rem,calc(100vw-5rem))] overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]";
 
   useEffect(() => {
     if (!mastersOpen) setMasterSubMenuState(null);
@@ -246,7 +270,40 @@ export default function CompanySidebar() {
   };
 
   return (
-    <aside className="flex h-full w-64 flex-col border-r border-[#dfe4ef] bg-[#f3f5fa] shadow-[0_14px_38px_-28px_rgba(15,23,42,0.45)]">
+    <>
+      <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-3 border-b border-[#dfe4ef] bg-[#f3f5fa] px-3 md:hidden">
+        <button
+          type="button"
+          aria-label="Open menu"
+          onClick={() => setMobileOpen(true)}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-zinc-800 hover:bg-white"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-5 w-5">
+            <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
+        </button>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-bold text-zinc-900">{company?.name ?? "Your lab"}</p>
+          <p className="truncate font-mono text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+            {company?.code ?? "Company portal"}
+          </p>
+        </div>
+      </div>
+
+      {mobileOpen ? (
+        <button
+          type="button"
+          aria-label="Close menu"
+          className="fixed inset-0 z-40 bg-zinc-900/40 md:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      ) : null}
+
+    <aside
+      className={`fixed inset-y-0 left-0 z-50 flex h-full w-72 max-w-[85vw] flex-col border-r border-[#dfe4ef] bg-[#f3f5fa] shadow-[0_14px_38px_-28px_rgba(15,23,42,0.45)] transition-transform duration-200 md:static md:z-auto md:w-64 md:max-w-none md:translate-x-0 md:pointer-events-auto ${
+        mobileOpen ? "translate-x-0" : "pointer-events-none -translate-x-full"
+      }`}
+    >
       <div className="flex items-center gap-3 border-b border-[#e7ebf4] px-5 py-5">
         {company?.logoUrl ? (
           <img
@@ -267,6 +324,16 @@ export default function CompanySidebar() {
             {company?.code ?? "Company portal"}
           </p>
         </div>
+        <button
+          type="button"
+          aria-label="Close menu"
+          onClick={() => setMobileOpen(false)}
+          className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 hover:bg-white md:hidden"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5">
+            <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+          </svg>
+        </button>
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
@@ -312,20 +379,28 @@ export default function CompanySidebar() {
                     fill="none"
                     stroke="currentColor"
                     strokeWidth={2}
-                    className={`ml-auto h-4 w-4 shrink-0 text-zinc-500 transition-transform ${mastersOpen ? "rotate-90" : "-rotate-90"}`}
+                    className={`ml-auto h-4 w-4 shrink-0 text-zinc-500 transition-transform ${
+                      isMobile
+                        ? mastersOpen
+                          ? "rotate-180"
+                          : ""
+                        : mastersOpen
+                          ? "rotate-90"
+                          : "-rotate-90"
+                    }`}
                     aria-hidden
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
                   </svg>
                 </button>
 
-                {mastersOpen && mastersPopoverStyle ? (
+                {mastersOpen && (isMobile || mastersPopoverStyle) ? (
                   <div
                     ref={mastersPopoverRef}
                     role="menu"
                     aria-label="Master categories"
-                    style={mastersPopoverStyle}
-                    className="z-100 w-max min-w-52 max-w-[min(20rem,calc(100vw-5rem))] overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]"
+                    style={isMobile ? undefined : mastersPopoverStyle}
+                    className={menuFlyoutClass}
                   >
                     {COMPANY_MASTERS_MENU.map((group) => {
                       const isGroupActive =
@@ -338,6 +413,10 @@ export default function CompanySidebar() {
                             onClick={(e) => {
                               if (isSubOpen) {
                                 setMasterSubMenuState(null);
+                                return;
+                              }
+                              if (isMobile) {
+                                setMasterSubMenuState({ groupTab: group.tab, style: {} });
                                 return;
                               }
                               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -381,8 +460,8 @@ export default function CompanySidebar() {
                     ref={masterSubMenuRef}
                     role="menu"
                     aria-label="Master sub-items"
-                    style={masterSubMenuState.style}
-                    className="z-110 w-max min-w-48 max-w-[min(18rem,calc(100vw-5rem))] overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]"
+                    style={isMobile ? undefined : masterSubMenuState.style}
+                    className={nestedFlyoutClass}
                   >
                     {COMPANY_MASTERS_MENU.find(
                       (m) => m.tab === masterSubMenuState.groupTab,
@@ -407,6 +486,10 @@ export default function CompanySidebar() {
                             if (hasGrandchildren) {
                               if (isSubSubOpen) {
                                 setMasterSubSubMenuState(null);
+                                return;
+                              }
+                              if (isMobile) {
+                                setMasterSubSubMenuState({ parentTab: child.tab, style: {} });
                                 return;
                               }
                               const rect = (
@@ -468,8 +551,8 @@ export default function CompanySidebar() {
                     ref={masterSubSubMenuRef}
                     role="menu"
                     aria-label="Master leaf items"
-                    style={masterSubSubMenuState.style}
-                    className="z-120 w-max min-w-44 max-w-[min(18rem,calc(100vw-5rem))] overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]"
+                    style={isMobile ? undefined : masterSubSubMenuState.style}
+                    className={leafFlyoutClass}
                   >
                     {(() => {
                       const group = COMPANY_MASTERS_MENU.find(
@@ -548,19 +631,27 @@ export default function CompanySidebar() {
                     fill="none"
                     stroke="currentColor"
                     strokeWidth={2}
-                    className={`ml-auto h-4 w-4 shrink-0 text-zinc-500 transition-transform ${transactionsOpen ? "rotate-90" : "-rotate-90"}`}
+                    className={`ml-auto h-4 w-4 shrink-0 text-zinc-500 transition-transform ${
+                      isMobile
+                        ? transactionsOpen
+                          ? "rotate-180"
+                          : ""
+                        : transactionsOpen
+                          ? "rotate-90"
+                          : "-rotate-90"
+                    }`}
                     aria-hidden
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
                   </svg>
                 </button>
 
-                {transactionsOpen && transactionsPopoverStyle ? (
+                {transactionsOpen && (isMobile || transactionsPopoverStyle) ? (
                   <div
                     role="menu"
                     aria-label="Transaction types"
-                    style={transactionsPopoverStyle}
-                    className="z-100 w-max min-w-52 max-w-[min(20rem,calc(100vw-5rem))] overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]"
+                    style={isMobile ? undefined : transactionsPopoverStyle}
+                    className={menuFlyoutClass}
                   >
                     {COMPANY_TRANSACTION_MENU.map((entry) => (
                       <button
@@ -621,19 +712,27 @@ export default function CompanySidebar() {
                     fill="none"
                     stroke="currentColor"
                     strokeWidth={2}
-                    className={`ml-auto h-4 w-4 shrink-0 text-zinc-500 transition-transform ${reportsOpen ? "rotate-90" : "-rotate-90"}`}
+                    className={`ml-auto h-4 w-4 shrink-0 text-zinc-500 transition-transform ${
+                      isMobile
+                        ? reportsOpen
+                          ? "rotate-180"
+                          : ""
+                        : reportsOpen
+                          ? "rotate-90"
+                          : "-rotate-90"
+                    }`}
                     aria-hidden
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
                   </svg>
                 </button>
 
-                {reportsOpen && reportsPopoverStyle ? (
+                {reportsOpen && (isMobile || reportsPopoverStyle) ? (
                   <div
                     role="menu"
                     aria-label="Report categories"
-                    style={reportsPopoverStyle}
-                    className="z-100 w-max min-w-52 max-w-[min(20rem,calc(100vw-5rem))] overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]"
+                    style={isMobile ? undefined : reportsPopoverStyle}
+                    className={menuFlyoutClass}
                   >
                     {COMPANY_REPORTS_MENU.map((entry) => {
                       type WithKids = { children: readonly { tab: string }[] };
@@ -656,6 +755,10 @@ export default function CompanySidebar() {
                             if (hasChildren) {
                               if (isSubOpen) {
                                 setReportSubMenuState(null);
+                                return;
+                              }
+                              if (isMobile) {
+                                setReportSubMenuState({ itemTab: entry.tab, style: {} });
                                 return;
                               }
                               const rect = (
@@ -716,8 +819,8 @@ export default function CompanySidebar() {
                     ref={reportSubMenuRef}
                     role="menu"
                     aria-label="Report sub-items"
-                    style={reportSubMenuState.style}
-                    className="z-110 w-max overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]"
+                    style={isMobile ? undefined : reportSubMenuState.style}
+                    className={isMobile ? nestedFlyoutClass : "z-110 w-max overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]"}
                   >
                     {(() => {
                       const parent = COMPANY_REPORTS_MENU.find(
@@ -732,7 +835,7 @@ export default function CompanySidebar() {
                             ).children
                           : [];
                       return (
-                        <div className="grid grid-cols-2">
+                        <div className={isMobile ? "grid grid-cols-1" : "grid grid-cols-2"}>
                           {leaves.map((leaf) => (
                             <button
                               key={leaf.tab}
@@ -823,5 +926,6 @@ export default function CompanySidebar() {
         </button>
       </div>
     </aside>
+    </>
   );
 }

@@ -17,6 +17,7 @@ enum AccountStatus {
   Inactive
 }
 
+
 enum CompanyPlan {
   Base
   Ascent
@@ -56,7 +57,12 @@ model Company {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
-  users User[]
+  users        User[]
+  ageGroups    AgeGroup[]
+  departments  Department[]
+  doctors      Doctor[]
+  tests        Test[]
+  packages     Package[]
 
   @@index([status])
   @@map("companies")
@@ -84,4 +90,109 @@ model User {
   @@index([companyId])
   @@index([status])
   @@map("users")
+}
+
+model AgeGroup {
+  id           String    @id @default(cuid())
+  companyId    String
+  company      Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name         String
+  fromYears    Int       @default(0)
+  fromMonths   Int       @default(0)
+  fromDays     Int       @default(0)
+  toYears      Int       @default(0)
+  toMonths     Int       @default(0)
+  toDays       Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([companyId])
+  @@map("age_groups")
+}
+
+model Department {
+  id             String          @id @default(cuid())
+  companyId      String
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name           String
+  accountName    String          @default("")
+  firmName       String          @default("")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  subDepartments SubDepartment[]
+  tests          Test[]
+
+  @@index([companyId])
+  @@map("departments")
+}
+
+model SubDepartment {
+  id           String     @id @default(cuid())
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  name         String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  tests        Test[]
+
+  @@index([departmentId])
+  @@map("sub_departments")
+}
+
+model Doctor {
+  id              String   @id @default(cuid())
+  companyId       String
+  company         Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name            String
+  email           String   @default("")
+  mobile          String   @default("")
+  clinicAddress   String   @default("")
+  qualification   String   @default("")
+  specialization  String   @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([companyId])
+  @@map("doctors")
+}
+
+enum DoneFor {
+  Male
+  Female
+  Both
+}
+
+model Test {
+  id              String         @id @default(cuid())
+  companyId       String
+  company         Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name            String
+  printAs         String         @default("")
+  departmentId    String
+  department      Department     @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  subDepartmentId String?
+  subDepartment   SubDepartment? @relation(fields: [subDepartmentId], references: [id], onDelete: SetNull)
+  amount          Float
+  testMrp         Float
+  doneFor         DoneFor        @default(Both)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([companyId])
+  @@index([departmentId])
+  @@index([subDepartmentId])
+  @@map("tests")
+}
+
+model Package {
+  id         String   @id @default(cuid())
+  companyId  String
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name       String
+  amount     Float
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([companyId])
+  @@map("packages")
 }

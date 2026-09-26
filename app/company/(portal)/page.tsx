@@ -47,7 +47,7 @@ function badgeForStatus(status: string) {
 export default function CompanyDashboardPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <header className="shrink-0 flex items-center justify-between gap-4 border-b border-[#dfe4ef] bg-[#f3f5fa] px-6 py-3.5 shadow-[0_10px_28px_-24px_rgba(15,23,42,0.65)]">
+      <header className="shrink-0 flex flex-col gap-3 border-b border-[#dfe4ef] bg-[#f3f5fa] px-4 py-3.5 shadow-[0_10px_28px_-24px_rgba(15,23,42,0.65)] sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <div>
           <h1 className="text-base font-bold text-zinc-900">Company Dashboard</h1>
           <p className="text-xs text-zinc-600">Daily operations workspace for your lab team</p>
@@ -64,14 +64,14 @@ export default function CompanyDashboardPage() {
               className="h-8 w-64 rounded-lg border border-[#d7ddea] bg-white/80 pl-9 pr-3 text-sm text-zinc-700 placeholder:text-zinc-600 outline-none transition-colors focus:border-[#bcc6da] focus:bg-white"
             />
           </div>
-          <button className="inline-flex items-center gap-2 rounded-lg border border-[#d7ddea] bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition-colors hover:bg-zinc-50">
+          <button className="inline-flex w-fit items-center gap-2 rounded-lg border border-[#d7ddea] bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition-colors hover:bg-zinc-50">
             Start new task
           </button>
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-        <section className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+      <main className="flex-1 overflow-y-auto space-y-4 px-4 py-4 sm:space-y-6 sm:px-6 sm:py-6">
+        <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
           {kpis.map((item) => (
             <article key={item.label} className="rounded-2xl border border-[#dfe4ef] bg-[#f8f9fc] p-5 shadow-[0_16px_30px_-24px_rgba(15,23,42,0.55)]">
               <p className="text-xs font-medium text-zinc-700">{item.label}</p>
@@ -83,7 +83,7 @@ export default function CompanyDashboardPage() {
 
         <section className="grid xl:grid-cols-3 gap-4">
           <div className="xl:col-span-2 overflow-hidden rounded-2xl border border-[#dfe4ef] bg-[#f8f9fc] shadow-[0_16px_32px_-24px_rgba(15,23,42,0.6)]">
-            <div className="flex items-center justify-between border-b border-[#e8ecf5] px-5 py-4">
+            <div className="flex flex-col gap-3 border-b border-[#e8ecf5] px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
               <div>
                 <h2 className="text-sm font-bold text-zinc-900">Sample Queue</h2>
                 <p className="text-xs text-zinc-600">Live processing status and priorities</p>

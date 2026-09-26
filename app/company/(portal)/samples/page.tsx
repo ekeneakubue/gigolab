@@ -101,13 +101,13 @@ function priorityBadge(priority: string) {
 export default function CompanySamplesPage() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <header className="shrink-0 border-b border-[#dfe4ef] bg-[#f3f5fa] px-6 py-3.5 shadow-[0_10px_28px_-24px_rgba(15,23,42,0.65)]">
-        <div className="flex items-center justify-between gap-4">
+      <header className="shrink-0 border-b border-[#dfe4ef] bg-[#f3f5fa] px-4 py-3.5 shadow-[0_10px_28px_-24px_rgba(15,23,42,0.65)] sm:px-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-base font-bold text-zinc-900">Samples</h1>
             <p className="text-xs text-zinc-700">Track sample flow from collection to validation.</p>
           </div>
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <button className="rounded-lg border border-[#d7ddea] bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition-colors hover:bg-zinc-50">
               Import Batch
             </button>
@@ -118,8 +118,8 @@ export default function CompanySamplesPage() {
         </div>
       </header>
 
-      <main className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
-        <section className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+      <main className="flex-1 space-y-6 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
+        <section className="grid grid-cols-1 gap-4 min-[420px]:grid-cols-2 xl:grid-cols-4">
           {laneStats.map((item) => (
             <article
               key={item.label}

@@ -191,7 +191,7 @@ export default function CompanyUsersPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <header className="shrink-0 border-b border-[#dfe4ef] bg-[#f3f5fa] px-6 py-4 shadow-[0_10px_28px_-24px_rgba(15,23,42,0.65)]">
+      <header className="shrink-0 border-b border-[#dfe4ef] bg-[#f3f5fa] px-4 py-4 shadow-[0_10px_28px_-24px_rgba(15,23,42,0.65)] sm:px-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-base font-bold text-zinc-900">Users</h1>
@@ -231,7 +231,7 @@ export default function CompanyUsersPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-6 py-6">
+      <main className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
         <div className="overflow-hidden rounded-2xl border border-[#dfe4ef] bg-white shadow-[0_16px_32px_-24px_rgba(15,23,42,0.6)]">
           <div className="border-b border-[#e8ecf5] px-5 py-4">
             <h2 className="text-sm font-bold text-zinc-900">Lab team</h2>
@@ -347,7 +347,7 @@ export default function CompanyUsersPage() {
 
       {isModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-5xl rounded-2xl border border-emerald-100 bg-white shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-emerald-100 bg-white shadow-2xl">
             <div className="flex items-center justify-between px-6 py-3.5 border-b border-emerald-50">
               <div>
                 <h2 className="text-lg font-bold text-zinc-950">Add New User</h2>

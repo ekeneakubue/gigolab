@@ -3,6 +3,12 @@
 import { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 
+import AgeGroupsPanel from "./AgeGroupsPanel";
+import DepartmentsPanel from "./DepartmentsPanel";
+import DoctorsPanel from "./DoctorsPanel";
+import PackagesPanel from "./PackagesPanel";
+import TestsPanel from "./TestsPanel";
+
 import { COMPANY_MASTER_TAB_VALUES } from "@/lib/company-masters-menu";
 
 const validTabSet = new Set<string>(COMPANY_MASTER_TAB_VALUES);
@@ -276,9 +282,29 @@ function CompanyMastersContent() {
   const tab = useMemo(() => normalizeTabParam(searchParams.get("tab")), [searchParams]);
   const panel = useMemo(() => panels[tab] ?? panels["lab-mm-tests"], [tab]);
 
+  if (tab === "lab-mm-age-groups") {
+    return <AgeGroupsPanel />;
+  }
+
+  if (tab === "lab-mm-departments") {
+    return <DepartmentsPanel />;
+  }
+
+  if (tab === "lab-mm-doctors") {
+    return <DoctorsPanel />;
+  }
+
+  if (tab === "lab-mm-tests") {
+    return <TestsPanel />;
+  }
+
+  if (tab === "lab-mm-packages") {
+    return <PackagesPanel />;
+  }
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <header className="shrink-0 border-b border-[#dfe4ef] bg-[#f3f5fa] px-6 py-4 shadow-[0_10px_28px_-24px_rgba(15,23,42,0.65)]">
+      <header className="shrink-0 border-b border-[#dfe4ef] bg-[#f3f5fa] px-4 py-4 shadow-[0_10px_28px_-24px_rgba(15,23,42,0.65)] sm:px-6">
         <div>
           <h1 className="text-base font-bold text-zinc-900">Masters</h1>
           <p className="mt-1 text-xs text-zinc-700">
@@ -288,8 +314,8 @@ function CompanyMastersContent() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-6 py-6">
-        <section className="overflow-hidden rounded-2xl border border-[#dfe4ef] bg-[#f8f9fc] p-8 shadow-[0_16px_32px_-24px_rgba(15,23,42,0.6)]">
+      <main className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
+        <section className="overflow-hidden rounded-2xl border border-[#dfe4ef] bg-[#f8f9fc] p-4 shadow-[0_16px_32px_-24px_rgba(15,23,42,0.6)] sm:p-8">
           <div className="space-y-2">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
               {panel.breadcrumb.join(" · ")}

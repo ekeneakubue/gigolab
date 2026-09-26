@@ -39,7 +39,7 @@ function CompanyTransactionsContent() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <header className="shrink-0 border-b border-[#dfe4ef] bg-[#f3f5fa] px-6 py-4 shadow-[0_10px_28px_-24px_rgba(15,23,42,0.65)]">
+      <header className="shrink-0 border-b border-[#dfe4ef] bg-[#f3f5fa] px-4 py-4 shadow-[0_10px_28px_-24px_rgba(15,23,42,0.65)] sm:px-6">
         <div>
           <h1 className="text-base font-bold text-zinc-900">Transactions</h1>
           <p className="mt-1 text-xs text-zinc-700">
@@ -49,8 +49,8 @@ function CompanyTransactionsContent() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-6 py-6">
-        <section className="overflow-hidden rounded-2xl border border-[#dfe4ef] bg-[#f8f9fc] p-8 shadow-[0_16px_32px_-24px_rgba(15,23,42,0.6)]">
+      <main className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
+        <section className="overflow-hidden rounded-2xl border border-[#dfe4ef] bg-[#f8f9fc] p-4 shadow-[0_16px_32px_-24px_rgba(15,23,42,0.6)] sm:p-8">
           <div className="space-y-2">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">{panel.kicker}</p>
             <h2 className="text-lg font-bold text-zinc-900">{panel.title}</h2>
