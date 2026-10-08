@@ -4,7 +4,7 @@ import { useCallback, useLayoutEffect, useState, type CSSProperties, type RefObj
 
 /** Fixed panel to the right of a sidebar control; flips left if needed. */
 export function useFlyoutPosition(open: boolean, buttonRef: RefObject<HTMLButtonElement | null>) {
-  const [popoverStyle, setPopoverStyle] = useState<CSSProperties | null>(null);
+  const [popoverStyle, setPopoverStyle] = useState<CSSProperties | undefined>(undefined);
 
   const updatePosition = useCallback(() => {
     const btn = buttonRef.current;
@@ -31,7 +31,7 @@ export function useFlyoutPosition(open: boolean, buttonRef: RefObject<HTMLButton
 
   useLayoutEffect(() => {
     if (!open) {
-      setPopoverStyle(null);
+      setPopoverStyle(undefined);
       return;
     }
     updatePosition();
