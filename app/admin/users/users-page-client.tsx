@@ -278,13 +278,13 @@ export default function UsersPageClient() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <header className="shrink-0 flex items-center justify-between gap-4 bg-white border-b border-emerald-100 px-6 py-3.5 shadow-sm">
-        <div>
+      <header className="shrink-0 flex items-center justify-between gap-3 bg-white border-b border-emerald-100 px-4 py-3 shadow-sm sm:px-6 sm:py-3.5">
+        <div className="min-w-0">
           <h1 className="text-base font-bold text-zinc-900">Users</h1>
-          <p className="text-xs text-zinc-400">Manage roles, access and user activity</p>
+          <p className="hidden text-xs text-zinc-400 sm:block">Manage roles, access and user activity</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-3">
           <div className="relative hidden md:block">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">
               <circle cx="11" cy="11" r="8" />
@@ -311,7 +311,20 @@ export default function UsersPageClient() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
+      <main className="flex-1 overflow-y-auto px-4 py-4 space-y-5 sm:px-6 sm:py-6">
+        <div className="relative md:hidden">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">
+            <circle cx="11" cy="11" r="8" />
+            <path strokeLinecap="round" d="M21 21l-4.35-4.35" />
+          </svg>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search users…"
+            className="h-10 w-full rounded-xl border border-emerald-100 bg-white pl-9 pr-3 text-sm text-zinc-700 placeholder:text-zinc-400 outline-none focus:border-emerald-300"
+          />
+        </div>
         <div className="flex flex-wrap gap-3">
           {overviewStats.map((s) => (
             <div key={s.label} className="flex items-center gap-2.5 rounded-xl border border-emerald-100 bg-white px-4 py-2.5 shadow-sm">
@@ -321,13 +334,21 @@ export default function UsersPageClient() {
           ))}
         </div>
 
-        <div className="md:hidden grid grid-cols-1 gap-4">
+        <div className="md:hidden grid grid-cols-1 gap-3">
+          {filteredUsers.length === 0 ? (
+            <div className="rounded-2xl border border-emerald-100 bg-white px-4 py-12 text-center shadow-sm">
+              <p className="text-sm font-medium text-zinc-600">No users found</p>
+              <p className="mt-1 text-xs text-zinc-400">
+                {users.length === 0 ? "Add a user to get started." : "Try a different search term."}
+              </p>
+            </div>
+          ) : null}
           {filteredUsers.map((u, i) => {
             const status = statusMeta[u.status] ?? statusMeta.Active;
             const pill = rolePills[u.role] ?? rolePills.Technician;
             const avatar = avatarColors[i % avatarColors.length];
             return (
-              <article key={u.id} className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-white p-5 shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200">
+              <article key={u.id} className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-white p-4 shadow-md">
                 <div className="absolute top-0 inset-x-0 h-0.5 bg-linear-to-r from-emerald-400 via-teal-400 to-emerald-300" />
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3 min-w-0">
@@ -345,14 +366,59 @@ export default function UsersPageClient() {
                       <p className="text-[11px] text-zinc-400 truncate">{u.email}</p>
                     </div>
                   </div>
-                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${status.badge}`}>
+                  <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${status.badge}`}>
                     <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
                     {u.status}
                   </span>
                 </div>
-                <div className="mt-4 flex flex-wrap gap-2.5">
+                <div className="mt-3 flex flex-wrap gap-2">
                   <span className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold ${pill}`}>{u.role}</span>
-                  <span className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold bg-zinc-100 text-zinc-600 ring-1 ring-zinc-200">{u.company}</span>
+                  <span className="inline-flex max-w-full items-center truncate rounded-full px-3 py-1 text-[11px] font-semibold bg-zinc-100 text-zinc-600 ring-1 ring-zinc-200">{u.company}</span>
+                </div>
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <p className="text-[11px] text-zinc-400">Last seen {u.lastSeen}</p>
+                  <div className="inline-flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => openEditUserModal(u)}
+                      aria-label={`Edit ${u.name}`}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4" aria-hidden>
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteUser(u)}
+                      disabled={deletingUserId === u.id}
+                      aria-label={`Delete ${u.name}`}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-100 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {deletingUserId === u.id ? (
+                        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden>
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                          />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4" aria-hidden>
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16"
+                          />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </article>
             );
@@ -408,7 +474,7 @@ export default function UsersPageClient() {
                         </td>
                         <td className="px-4 py-3 text-zinc-700">{u.company}</td>
                         <td className="px-4 py-3">
-                          <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${status.badge}`}>
+                          <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${status.badge}`}>
                             <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
                             {u.status}
                           </span>
@@ -469,10 +535,10 @@ export default function UsersPageClient() {
       </main>
 
       {isModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-5xl rounded-2xl border border-emerald-100 bg-white shadow-2xl">
-            <div className="flex items-center justify-between px-6 py-3.5 border-b border-emerald-50">
-              <div>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-900/40 backdrop-blur-sm p-0 sm:items-center sm:p-4">
+          <div className="flex max-h-[100dvh] w-full max-w-5xl flex-col overflow-hidden rounded-t-2xl border border-emerald-100 bg-white shadow-2xl sm:max-h-[90dvh] sm:rounded-2xl">
+            <div className="flex shrink-0 items-center justify-between gap-3 px-4 py-3.5 border-b border-emerald-50 sm:px-6">
+              <div className="min-w-0">
                 <h2 className="text-lg font-bold text-zinc-950">{editingUserId ? "Edit User" : "Add New User"}</h2>
                 <p className="text-sm font-medium text-zinc-800 mt-1">
                   {editingUserId ? "Update this user account" : "Create a platform user account"}
@@ -486,7 +552,7 @@ export default function UsersPageClient() {
                 Close
               </button>
             </div>
-            <form onSubmit={submitNewUser} className="px-6 py-4 space-y-4">
+            <form onSubmit={submitNewUser} className="overflow-y-auto px-4 py-4 space-y-4 sm:px-6">
               <div className="flex flex-col items-center text-center">
                   <p className="text-sm font-bold text-zinc-950">Upload image</p>
                   <label
@@ -628,19 +694,19 @@ export default function UsersPageClient() {
               </div>
               {error ? <p className="text-sm font-semibold text-red-700">{error}</p> : null}
 
-              <div className="flex justify-end gap-3 pt-1">
+              <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end sm:gap-3">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   disabled={isAddingUser}
-                  className="rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-base font-bold text-zinc-900 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-base font-bold text-zinc-900 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isAddingUser}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2.5 text-base font-bold text-emerald-900 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-70 min-w-36"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2.5 text-base font-bold text-emerald-900 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto sm:min-w-36"
                 >
                   {isAddingUser ? (
                     <>

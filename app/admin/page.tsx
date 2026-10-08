@@ -137,10 +137,10 @@ export default function AdminDashboard() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* ── Top bar ── */}
-      <header className="shrink-0 flex items-center justify-between gap-4 bg-white border-b border-emerald-100 px-6 py-3.5 shadow-sm">
-        <div>
+      <header className="shrink-0 flex items-center justify-between gap-3 bg-white border-b border-emerald-100 px-4 py-3 shadow-sm sm:px-6 sm:py-3.5">
+        <div className="min-w-0">
           <h1 className="text-base font-bold text-zinc-900">Dashboard</h1>
-          <p className="text-xs text-zinc-400">Welcome back, Super Admin</p>
+          <p className="text-xs text-zinc-400 truncate">Welcome back, Super Admin</p>
         </div>
         <div className="flex items-center gap-3">
           {/* Search */}
@@ -169,17 +169,17 @@ export default function AdminDashboard() {
       </header>
 
       {/* ── Scrollable body ── */}
-      <main className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+      <main className="flex-1 overflow-y-auto px-4 py-4 space-y-5 sm:px-6 sm:py-6 sm:space-y-6">
 
         {/* ── Stat cards ── */}
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
           {stats.map((s) => (
             <div
               key={s.label}
-              className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-white p-5 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
+              className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-white p-4 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 sm:p-5"
             >
               <div className={`absolute top-0 left-0 right-0 h-0.5 ${s.bar}`} />
-              <div className="flex items-start justify-between mb-3">
+              <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
                 <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${s.accent}`}>
                   {s.icon}
                 </span>
@@ -198,16 +198,40 @@ export default function AdminDashboard() {
 
           {/* Companies table */}
           <div className="xl:col-span-2 rounded-2xl border border-emerald-100 bg-white shadow-md overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-emerald-50">
-              <div>
+            <div className="flex items-center justify-between gap-3 px-4 py-4 border-b border-emerald-50 sm:px-5">
+              <div className="min-w-0">
                 <h2 className="text-sm font-bold text-zinc-900">Companies</h2>
                 <p className="text-xs text-zinc-400">All registered labs</p>
               </div>
-              <button className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors">
+              <button className="shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors">
                 + Add company
               </button>
             </div>
-            <div className="overflow-x-auto">
+            <ul className="divide-y divide-emerald-50/80 md:hidden">
+              {companies.map((c) => (
+                <li key={c.name} className="px-4 py-3.5">
+                  <div className="flex items-start gap-2.5">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 text-[11px] font-bold">
+                      {c.name[0]}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-semibold text-zinc-800">{c.name}</p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${planBadge[c.plan]}`}>
+                          {c.plan}
+                        </span>
+                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${statusBadge[c.status]}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${c.status === "Active" ? "bg-emerald-500" : c.status === "Trial" ? "bg-amber-500" : "bg-zinc-400"}`} />
+                          {c.status}
+                        </span>
+                      </div>
+                      <p className="mt-1.5 text-[12px] text-zinc-500">{c.users} users · Joined {c.joined}</p>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-emerald-50">
@@ -251,7 +275,7 @@ export default function AdminDashboard() {
 
           {/* Activity feed */}
           <div className="rounded-2xl border border-emerald-100 bg-white shadow-md overflow-hidden">
-            <div className="px-5 py-4 border-b border-emerald-50">
+            <div className="px-4 py-4 border-b border-emerald-50 sm:px-5">
               <h2 className="text-sm font-bold text-zinc-900">Recent Activity</h2>
               <p className="text-xs text-zinc-400">System-wide events</p>
             </div>
@@ -259,7 +283,7 @@ export default function AdminDashboard() {
               {activity.map((a, i) => {
                 const style = activityIcon[a.type];
                 return (
-                  <li key={i} className="flex gap-3 px-5 py-3.5 hover:bg-emerald-50/40 transition-colors">
+                  <li key={i} className="flex gap-3 px-4 py-3.5 hover:bg-emerald-50/40 transition-colors sm:px-5">
                     <div className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${style.bg}`}>
                       {style.icon}
                     </div>
@@ -277,16 +301,38 @@ export default function AdminDashboard() {
 
         {/* ── Recent Users ── */}
         <div className="rounded-2xl border border-emerald-100 bg-white shadow-md overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-emerald-50">
-            <div>
+          <div className="flex items-center justify-between gap-3 px-4 py-4 border-b border-emerald-50 sm:px-5">
+            <div className="min-w-0">
               <h2 className="text-sm font-bold text-zinc-900">Recent Users</h2>
               <p className="text-xs text-zinc-400">Latest sign-ins across all companies</p>
             </div>
-            <button className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors">
+            <button className="shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors">
               View all
             </button>
           </div>
-          <div className="overflow-x-auto">
+          <ul className="divide-y divide-emerald-50/80 md:hidden">
+            {recentUsers.map((u) => (
+              <li key={u.email} className="px-4 py-3.5">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white text-[11px] font-bold">
+                    {u.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-[13px] font-semibold text-zinc-800">{u.name}</p>
+                      <span className="shrink-0 text-[11px] text-zinc-400">{u.time}</span>
+                    </div>
+                    <p className="truncate text-[11px] text-zinc-400">{u.email}</p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <span className="text-[12px] text-zinc-600 bg-zinc-100 rounded-full px-2.5 py-0.5 font-medium">{u.role}</span>
+                      <span className="text-[12px] text-zinc-500">{u.company}</span>
+                    </div>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-emerald-50">

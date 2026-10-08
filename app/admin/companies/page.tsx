@@ -333,12 +333,12 @@ export default function CompaniesPage() {
     <div className="flex flex-col h-full overflow-hidden">
 
       {/* â”€â”€ Top bar â”€â”€ */}
-      <header className="shrink-0 flex items-center justify-between gap-4 bg-white border-b border-emerald-100 px-6 py-3.5 shadow-sm">
-        <div>
+      <header className="shrink-0 flex items-center justify-between gap-3 bg-white border-b border-emerald-100 px-4 py-3 shadow-sm sm:px-6 sm:py-3.5">
+        <div className="min-w-0">
           <h1 className="text-base font-bold text-zinc-900">Companies</h1>
-          <p className="text-xs text-zinc-400">Manage all registered labs and organisations</p>
+          <p className="hidden text-xs text-zinc-400 sm:block">Manage all registered labs and organisations</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-3">
           <div className="relative hidden md:block">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">
               <circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="M21 21l-4.35-4.35" />
@@ -364,9 +364,22 @@ export default function CompaniesPage() {
       </header>
 
       {/* â”€â”€ Body â”€â”€ */}
-      <main className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
+      <main className="flex-1 overflow-y-auto px-4 py-4 space-y-5 sm:px-6 sm:py-6">
 
         {/* â”€â”€ Overview chips â”€â”€ */}
+        <div className="relative md:hidden">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400">
+            <circle cx="11" cy="11" r="8" /><path strokeLinecap="round" d="M21 21l-4.35-4.35" />
+          </svg>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search companies…"
+            className="h-10 w-full rounded-xl border border-emerald-100 bg-white pl-9 pr-3 text-sm text-zinc-700 placeholder:text-zinc-400 outline-none focus:border-emerald-300"
+          />
+        </div>
+
         <div className="flex flex-wrap gap-3">
           {isLoadingCompanies
             ? overviewStats.map((s) => (
@@ -393,7 +406,7 @@ export default function CompaniesPage() {
 
         {/* â”€â”€ Companies table â”€â”€ */}
         <div className="rounded-2xl border border-emerald-100 bg-white shadow-md overflow-hidden">
-          <div className="px-5 py-4 border-b border-emerald-50">
+          <div className="px-4 py-4 border-b border-emerald-50 sm:px-5">
             <h2 className="text-sm font-bold text-zinc-900">All companies</h2>
             <p className="text-xs text-zinc-400">
               {isLoadingCompanies
@@ -401,7 +414,123 @@ export default function CompaniesPage() {
                 : `${filteredCompanies.length} of ${companies.length} registered labs`}
             </p>
           </div>
-          <div className="overflow-x-auto">
+          <div className="md:hidden">
+            {isLoadingCompanies ? (
+              <ul className="divide-y divide-emerald-50/80">
+                {Array.from({ length: 4 }, (_, i) => (
+                  <li key={`mobile-skeleton-${i}`} className="animate-pulse px-4 py-4">
+                    <div className="flex items-center gap-3">
+                      <span className="h-10 w-10 shrink-0 rounded-xl bg-emerald-100" />
+                      <div className="flex-1 space-y-2">
+                        <span className="block h-3.5 w-32 rounded bg-zinc-100" />
+                        <span className="block h-2.5 w-20 rounded bg-zinc-100" />
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : filteredCompanies.length === 0 ? (
+              <div className="px-4 py-12 text-center">
+                <p className="text-sm font-medium text-zinc-600">No companies found</p>
+                <p className="text-xs text-zinc-400 mt-1">
+                  {companies.length === 0 ? "Add your first lab to get started." : "Try a different search term."}
+                </p>
+                {companies.length === 0 ? (
+                  <button type="button" onClick={openAddCompanyModal} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition-colors">
+                    Add company
+                  </button>
+                ) : null}
+              </div>
+            ) : (
+              <ul className="divide-y divide-emerald-50/80">
+                {filteredCompanies.map((c, i) => {
+                  const status = statusMeta[c.status];
+                  const avatar = avatarColors[i % avatarColors.length];
+                  return (
+                    <li key={c.id} className="px-4 py-4">
+                      <div className="flex items-start gap-3">
+                        {c.logoUrl ? (
+                          <img
+                            src={c.logoUrl}
+                            alt=""
+                            className="h-10 w-10 shrink-0 rounded-xl object-cover ring-1 ring-emerald-100"
+                          />
+                        ) : (
+                          <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white text-[11px] font-bold ${avatar}`}>
+                            {c.initials}
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold text-zinc-800">{c.name}</p>
+                              <p className="text-[11px] text-zinc-400">{c.location}</p>
+                            </div>
+                            <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${status.badge}`}>
+                              <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+                              {c.status}
+                            </span>
+                          </div>
+                          <p className="mt-2 truncate text-[12px] text-zinc-600">{c.contact}</p>
+                          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-500">
+                            <span className="font-mono text-emerald-700">{c.code}</span>
+                            <span>{c.users} users</span>
+                            <span>{c.samples.toLocaleString()} samples</span>
+                          </div>
+                          <div className="mt-3 flex items-center justify-between gap-2">
+                            <p className="text-[11px] text-zinc-400">Joined {c.joined}</p>
+                            <div className="inline-flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => openEditModal(c)}
+                                aria-label={`Edit ${c.name}`}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+                              >
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4" aria-hidden>
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"
+                                  />
+                                </svg>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => deleteCompany(c)}
+                                disabled={deletingCompanyId === c.id}
+                                aria-label={`Delete ${c.name}`}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-100 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {deletingCompanyId === c.id ? (
+                                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden>
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path
+                                      className="opacity-75"
+                                      fill="currentColor"
+                                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                    />
+                                  </svg>
+                                ) : (
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4" aria-hidden>
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16"
+                                    />
+                                  </svg>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-emerald-50 bg-emerald-50/30">
@@ -559,10 +688,10 @@ export default function CompaniesPage() {
       </main>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-5xl rounded-2xl border border-emerald-100 bg-white shadow-2xl">
-            <div className="flex items-center justify-between px-6 py-3.5 border-b border-emerald-50">
-              <div>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-900/40 backdrop-blur-sm p-0 sm:items-center sm:p-4">
+          <div className="flex max-h-[100dvh] w-full max-w-5xl flex-col overflow-hidden rounded-t-2xl border border-emerald-100 bg-white shadow-2xl sm:max-h-[90dvh] sm:rounded-2xl">
+            <div className="flex shrink-0 items-center justify-between gap-3 px-4 py-3.5 border-b border-emerald-50 sm:px-6">
+              <div className="min-w-0">
                 <h2 className="text-lg font-bold text-zinc-950">Add New Company</h2>
                 <p className="text-sm font-medium text-zinc-800 mt-1">Register a new lab on Gigolab</p>
               </div>
@@ -575,7 +704,7 @@ export default function CompaniesPage() {
               </button>
             </div>
 
-            <form onSubmit={submitNewCompany} className="px-6 py-4 space-y-3">
+            <form onSubmit={submitNewCompany} className="overflow-y-auto px-4 py-4 space-y-3 sm:px-6">
               <CompanyFormFields
                 form={form}
                 onChange={(updater) => setForm(updater)}
@@ -587,19 +716,19 @@ export default function CompaniesPage() {
 
               {error ? <p className="text-sm font-semibold text-red-700">{error}</p> : null}
 
-              <div className="flex justify-end gap-3 pt-1">
+              <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end sm:gap-3">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   disabled={isAddingCompany}
-                  className="rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-base font-bold text-zinc-900 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-base font-bold text-zinc-900 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isAddingCompany}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2.5 text-base font-bold text-emerald-900 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-70 min-w-36"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2.5 text-base font-bold text-emerald-900 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto sm:min-w-36"
                 >
                   {isAddingCompany ? (
                     <>
@@ -636,10 +765,10 @@ export default function CompaniesPage() {
       )}
 
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-5xl rounded-2xl border border-emerald-100 bg-white shadow-2xl">
-            <div className="flex items-center justify-between px-6 py-3.5 border-b border-emerald-50">
-              <div>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-900/40 backdrop-blur-sm p-0 sm:items-center sm:p-4">
+          <div className="flex max-h-[100dvh] w-full max-w-5xl flex-col overflow-hidden rounded-t-2xl border border-emerald-100 bg-white shadow-2xl sm:max-h-[90dvh] sm:rounded-2xl">
+            <div className="flex shrink-0 items-center justify-between gap-3 px-4 py-3.5 border-b border-emerald-50 sm:px-6">
+              <div className="min-w-0">
                 <h2 className="text-lg font-bold text-zinc-950">Edit Company</h2>
                 <p className="text-sm font-medium text-zinc-800 mt-1">Update details for this lab</p>
               </div>
@@ -652,7 +781,7 @@ export default function CompaniesPage() {
               </button>
             </div>
 
-            <form onSubmit={submitEditCompany} className="px-6 py-4 space-y-3">
+            <form onSubmit={submitEditCompany} className="overflow-y-auto px-4 py-4 space-y-3 sm:px-6">
               <CompanyFormFields
                 form={editForm}
                 onChange={(updater) => setEditForm(updater)}
@@ -664,19 +793,19 @@ export default function CompaniesPage() {
 
               {editError ? <p className="text-sm font-semibold text-red-700">{editError}</p> : null}
 
-              <div className="flex justify-end gap-3 pt-1">
+              <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end sm:gap-3">
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
                   disabled={isSavingCompany}
-                  className="rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-base font-bold text-zinc-900 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-base font-bold text-zinc-900 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSavingCompany}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2.5 text-base font-bold text-emerald-900 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-70 min-w-36"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2.5 text-base font-bold text-emerald-900 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto sm:min-w-36"
                 >
                   {isSavingCompany ? (
                     <>

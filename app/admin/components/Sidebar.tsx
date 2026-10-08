@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const navItems = [
   {
@@ -50,20 +51,69 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   return (
-    <aside className="flex h-full w-64 flex-col bg-white border-r border-emerald-100 shadow-sm">
+    <>
+      <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-3 border-b border-emerald-100 bg-white px-3 md:hidden">
+        <button
+          type="button"
+          aria-label="Open menu"
+          aria-expanded={mobileOpen}
+          onClick={() => setMobileOpen(true)}
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-zinc-800 hover:bg-emerald-50"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-5 w-5">
+            <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
+        </button>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-bold leading-tight text-zinc-900">gigolab</p>
+          <p className="truncate text-[10px] font-semibold uppercase tracking-wider leading-tight text-emerald-600">
+            Super Admin
+          </p>
+        </div>
+      </div>
+
+      {mobileOpen ? (
+        <button
+          type="button"
+          aria-label="Close menu"
+          className="fixed inset-0 z-40 bg-zinc-900/40 md:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      ) : null}
+
+    <aside
+      className={`fixed inset-y-0 left-0 z-50 flex h-full w-72 max-w-[85vw] flex-col border-r border-emerald-100 bg-white shadow-sm transition-transform duration-200 md:static md:z-auto md:w-64 md:max-w-none md:translate-x-0 md:shadow-sm ${
+        mobileOpen ? "translate-x-0" : "pointer-events-none -translate-x-full md:pointer-events-auto"
+      }`}
+    >
       {/* Brand */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-emerald-50">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white text-sm font-bold shadow-md shadow-emerald-200">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white text-sm font-bold shadow-md shadow-emerald-200">
           G
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-sm font-bold text-zinc-900 leading-tight">gigolab</p>
           <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider leading-tight">
             Super Admin
           </p>
         </div>
+        <button
+          type="button"
+          aria-label="Close menu"
+          onClick={() => setMobileOpen(false)}
+          className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 hover:bg-emerald-50 md:hidden"
+        >
+          <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5">
+            <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+          </svg>
+        </button>
       </div>
 
       {/* Nav */}
@@ -124,5 +174,6 @@ export default function Sidebar() {
         </div>
       </div>
     </aside>
+    </>
   );
 }
