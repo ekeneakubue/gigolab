@@ -35,15 +35,15 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     const name = body.name?.trim() ?? "";
     const location = body.location?.trim() ?? "";
-    const contactEmail = body.contact?.trim() ?? "";
-    const phone = body.phone?.trim() ?? null;
+    const contactEmail = body.contact === undefined ? undefined : body.contact.trim();
+    const phone = body.phone === undefined ? undefined : body.phone.trim() || null;
     const password = body.password?.trim() ?? "";
     const logoUrl =
       body.logoUrl === undefined ? undefined : body.logoUrl?.trim() || null;
 
-    if (!name || !location || !contactEmail) {
+    if (!name || !location) {
       return NextResponse.json(
-        { error: "Name, location, and contact email are required." },
+        { error: "Name and location are required." },
         { status: 400 }
       );
     }
@@ -62,8 +62,8 @@ export async function PATCH(request: Request, context: RouteContext) {
         initials: toInitials(name),
         location,
         status,
-        contactEmail,
-        phone,
+        ...(contactEmail !== undefined ? { contactEmail } : {}),
+        ...(phone !== undefined ? { phone } : {}),
         ...(logoUrl !== undefined ? { logoUrl } : {}),
         ...(password ? { passwordHash: hashPassword(password) } : {}),
         lastActiveAt: new Date(),

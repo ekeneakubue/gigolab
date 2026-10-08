@@ -77,18 +77,6 @@ type ApiCompany = {
   logoUrl: string | null;
 };
 
-function readImageFile(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") resolve(reader.result);
-      else reject(new Error("Could not read selected image."));
-    };
-    reader.onerror = () => reject(new Error("Could not read selected image."));
-    reader.readAsDataURL(file);
-  });
-}
-
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
@@ -220,13 +208,8 @@ export default function CompaniesPage() {
   const submitNewCompany = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!form.name.trim() || !form.location.trim() || !form.contact.trim()) {
-      setError("Lab name, location, and contact email are required.");
-      return;
-    }
-
-    if (!form.password.trim()) {
-      setError("Password is required.");
+    if (!form.name.trim() || !form.location.trim()) {
+      setError("Lab name and location are required.");
       return;
     }
 
@@ -240,11 +223,8 @@ export default function CompaniesPage() {
         body: JSON.stringify({
           name: form.name,
           code: form.labCode,
-          password: form.password,
           location: form.location,
           status: form.status,
-          contact: form.contact,
-          phone: form.phone,
           logoUrl: form.logo,
         }),
       });
@@ -286,8 +266,8 @@ export default function CompaniesPage() {
     e.preventDefault();
     setEditError("");
     if (!editingCompanyId) return;
-    if (!editForm.name.trim() || !editForm.location.trim() || !editForm.contact.trim()) {
-      setEditError("Lab name, location, and contact email are required.");
+    if (!editForm.name.trim() || !editForm.location.trim()) {
+      setEditError("Lab name and location are required.");
       return;
     }
 
@@ -298,11 +278,8 @@ export default function CompaniesPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: editForm.name,
-          password: editForm.password,
           location: editForm.location,
           status: editForm.status,
-          contact: editForm.contact,
-          phone: editForm.phone,
           logoUrl: editForm.logo,
         }),
       });
@@ -603,8 +580,9 @@ export default function CompaniesPage() {
                 form={form}
                 onChange={(updater) => setForm(updater)}
                 onImageError={setError}
-                infoLine="Lab code is auto-generated (Gigolab + 6 characters). Set an initial password for company portal sign-in."
-                showPasswordToggle
+                infoLine="Lab code is auto-generated (Gigolab + 6 characters). Portal sign-in uses the users assigned to this company."
+                hidePassword
+                hideContactFields
               />
 
               {error ? <p className="text-sm font-semibold text-red-700">{error}</p> : null}
@@ -659,132 +637,46 @@ export default function CompaniesPage() {
 
       {isEditModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 backdrop-blur-sm p-4">
-          <div className="w-full max-w-2xl rounded-2xl border border-emerald-100 bg-white shadow-2xl">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-emerald-50">
-              <h2 className="text-sm font-bold text-zinc-900">Edit Company</h2>
+          <div className="w-full max-w-5xl rounded-2xl border border-emerald-100 bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-3.5 border-b border-emerald-50">
+              <div>
+                <h2 className="text-lg font-bold text-zinc-950">Edit Company</h2>
+                <p className="text-sm font-medium text-zinc-800 mt-1">Update details for this lab</p>
+              </div>
               <button
+                type="button"
                 onClick={() => setIsEditModalOpen(false)}
-                className="rounded-lg border border-zinc-200 px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-50"
+                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
               >
                 Close
               </button>
             </div>
 
-            <form onSubmit={submitEditCompany} className="p-5 space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="text-xs font-semibold text-zinc-700">Upload logo</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) {
-                        setEditForm((f) => ({ ...f, logo: null }));
-                        return;
-                      }
-                      try {
-                        const dataUrl = await readImageFile(file);
-                        setEditForm((f) => ({ ...f, logo: dataUrl }));
-                      } catch {
-                        setEditError("Could not read selected image.");
-                      }
-                    }}
-                    className="mt-1 block w-full rounded-xl border border-emerald-100 bg-white px-3 py-2 text-sm text-zinc-700 file:mr-3 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-emerald-700 hover:file:bg-emerald-100"
-                  />
-                  {editForm.logo ? (
-                    <img
-                      src={editForm.logo}
-                      alt=""
-                      className="mt-2 h-12 w-12 rounded-xl object-cover ring-1 ring-emerald-100"
-                    />
-                  ) : null}
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-700">Lab Name</label>
-                  <input
-                    value={editForm.name}
-                    onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
-                    className="mt-1 h-10 w-full rounded-xl border border-emerald-100 px-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-700">Lab Code</label>
-                  <input
-                    readOnly
-                    value={editForm.labCode}
-                    className="mt-1 h-10 w-full rounded-xl border border-emerald-100 bg-emerald-50/50 px-3 text-sm font-mono text-zinc-700 outline-none"
-                    aria-describedby="edit-lab-code-hint"
-                  />
-                  <p id="edit-lab-code-hint" className="mt-1 text-[11px] text-zinc-400">
-                    Lab code cannot be changed
-                  </p>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-700">Password</label>
-                  <input
-                    type="password"
-                    value={editForm.password}
-                    onChange={(e) => setEditForm((f) => ({ ...f, password: e.target.value }))}
-                    autoComplete="new-password"
-                    placeholder="Leave blank to keep current password"
-                    className="mt-1 h-10 w-full rounded-xl border border-emerald-100 px-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100 placeholder:text-zinc-400"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-700">Location</label>
-                  <input
-                    value={editForm.location}
-                    onChange={(e) => setEditForm((f) => ({ ...f, location: e.target.value }))}
-                    className="mt-1 h-10 w-full rounded-xl border border-emerald-100 px-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-700">Status</label>
-                  <select
-                    value={editForm.status}
-                    onChange={(e) => setEditForm((f) => ({ ...f, status: e.target.value as NewCompanyForm["status"] }))}
-                    className="mt-1 h-10 w-full rounded-xl border border-emerald-100 px-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
-                  >
-                    <option value="Active">Active</option>
-                    <option value="Trial">Trial</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-700">Contact email</label>
-                  <input
-                    type="email"
-                    value={editForm.contact}
-                    onChange={(e) => setEditForm((f) => ({ ...f, contact: e.target.value }))}
-                    className="mt-1 h-10 w-full rounded-xl border border-emerald-100 px-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-zinc-700">Phone</label>
-                  <input
-                    value={editForm.phone}
-                    onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
-                    className="mt-1 h-10 w-full rounded-xl border border-emerald-100 px-3 text-sm outline-none focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
-                  />
-                </div>
-              </div>
+            <form onSubmit={submitEditCompany} className="px-6 py-4 space-y-3">
+              <CompanyFormFields
+                form={editForm}
+                onChange={(updater) => setEditForm(updater)}
+                onImageError={setEditError}
+                infoLine="Lab code cannot be changed. Portal sign-in uses the users assigned to this company."
+                hidePassword
+                hideContactFields
+              />
 
-              {editError ? <p className="text-xs text-red-600">{editError}</p> : null}
+              {editError ? <p className="text-sm font-semibold text-red-700">{editError}</p> : null}
 
-              <div className="flex justify-end gap-3 pt-2">
+              <div className="flex justify-end gap-3 pt-1">
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
                   disabled={isSavingCompany}
-                  className="rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-600 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-base font-bold text-zinc-900 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSavingCompany}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-70 min-w-[8.5rem]"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2.5 text-base font-bold text-emerald-900 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-70 min-w-36"
                 >
                   {isSavingCompany ? (
                     <>

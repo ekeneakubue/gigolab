@@ -1,10 +1,8 @@
 "use client";
 
 import { FormEvent, useEffect, useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 
-import { COMPANY_CODE_PREFIX } from "@/lib/company-code";
 import { DEMO_COMPANY_PASSWORD } from "@/lib/company-demo";
 
 const loginSparks = [
@@ -16,15 +14,15 @@ const loginSparks = [
   { top: "38%", left: "22%", size: 2, color: "bg-teal-400", delay: "0.9s" },
 ] as const;
 
-export default function CompanyLoginForm() {
+export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextPath = searchParams.get("next") ?? "/company";
+  const nextPath = searchParams.get("next") ?? "";
   const fromDemo = searchParams.get("from") === "demo";
   const demoLabName = searchParams.get("lab");
-  const demoLabCode = searchParams.get("code");
+  const prefilledEmail = searchParams.get("email") ?? "";
 
-  const [code, setCode] = useState("");
+  const [email, setEmail] = useState(prefilledEmail);
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -33,37 +31,39 @@ export default function CompanyLoginForm() {
 
   useEffect(() => {
     if (!fromDemo) return;
-    if (demoLabCode) setCode(demoLabCode);
     setPassword(DEMO_COMPANY_PASSWORD);
-  }, [fromDemo, demoLabCode]);
+  }, [fromDemo]);
 
   const submitLogin = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (!code.trim() || !password) {
-      setError("Enter your lab code and password.");
+    if (!email.trim() || !password) {
+      setError("Enter your email and password.");
       return;
     }
 
     setIsLoading(true);
     try {
-      const response = await fetch("/api/company/auth/login", {
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          code: code.trim(),
+          email: email.trim(),
           password,
         }),
       });
 
-      const payload = (await response.json()) as { error?: string };
-      if (!response.ok) {
+      const payload = (await response.json()) as { error?: string; redirectTo?: string };
+      if (!response.ok || !payload.redirectTo) {
         setError(payload.error ?? "Could not sign in.");
         return;
       }
 
-      const destination = nextPath.startsWith("/company") ? nextPath : "/company";
+      const dashboard = payload.redirectTo;
+      const staysOnDashboard =
+        nextPath === dashboard || nextPath.startsWith(`${dashboard}/`);
+      const destination = staysOnDashboard ? nextPath : dashboard;
       startTransition(() => {
         router.push(destination);
       });
@@ -151,7 +151,7 @@ export default function CompanyLoginForm() {
               style={{ animationDelay: "0.05s" }}
             >
               <span className="animate-pulse-glow h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
-              Company portal
+              Gigolab sign in
             </div>
             <h1
               className="animate-fade-up mt-5 text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl"
@@ -164,7 +164,7 @@ export default function CompanyLoginForm() {
               className="animate-fade-up mt-4 max-w-md text-base leading-relaxed text-zinc-700"
               style={{ animationDelay: "0.25s" }}
             >
-              Sign in with the lab code and password issued when your organisation was registered on Gigolab.
+              Sign in with your email and password. You will be taken to the dashboard for your role.
             </p>
 
             <ul className="animate-fade-up mt-8 space-y-3" style={{ animationDelay: "0.35s" }}>
@@ -194,7 +194,7 @@ export default function CompanyLoginForm() {
                   </div>
                   <div>
                     <p className="text-lg font-bold text-zinc-900">gigolab</p>
-                    <p className="text-sm text-zinc-700">Company sign in</p>
+                    <p className="text-sm text-zinc-700">Sign in to your dashboard</p>
                   </div>
                 </div>
               </div>
@@ -211,14 +211,6 @@ export default function CompanyLoginForm() {
                     <dl className="mt-3 space-y-2 rounded-lg border border-emerald-200/80 bg-white/70 px-3 py-2.5">
                       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                         <dt className="text-xs font-semibold uppercase tracking-wide text-emerald-800/80">
-                          Lab code
-                        </dt>
-                        <dd className="font-mono text-sm font-semibold text-emerald-950">
-                          {demoLabCode ?? "—"}
-                        </dd>
-                      </div>
-                      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                        <dt className="text-xs font-semibold uppercase tracking-wide text-emerald-800/80">
                           Password
                         </dt>
                         <dd className="font-mono text-sm font-semibold text-emerald-950">{DEMO_COMPANY_PASSWORD}</dd>
@@ -228,22 +220,21 @@ export default function CompanyLoginForm() {
                 ) : null}
 
                 <div>
-                  <label htmlFor="lab-code" className="text-sm font-semibold text-zinc-800">
-                    Lab code
+                  <label htmlFor="email" className="text-sm font-semibold text-zinc-800">
+                    Email
                   </label>
                   <input
-                    id="lab-code"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    placeholder={`${COMPANY_CODE_PREFIX}A1b2C3`}
-                    autoComplete="username"
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@lab.com"
+                    autoComplete="email"
                     spellCheck={false}
-                    className="mt-2 h-12 w-full rounded-xl border border-[#dfe4ef] bg-[#f8f9fc] px-3.5 font-mono text-base text-zinc-900 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-300 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                    className="mt-2 h-12 w-full rounded-xl border border-[#dfe4ef] bg-[#f8f9fc] px-3.5 text-base text-zinc-900 outline-none transition-colors placeholder:text-zinc-600 focus:border-emerald-300 focus:bg-white focus:ring-2 focus:ring-emerald-100"
                   />
                   <p className="mt-2 text-sm text-zinc-700">
-                    {fromDemo
-                      ? "Use the demo lab code shown above"
-                      : `Format: ${COMPANY_CODE_PREFIX} followed by 6 letters or numbers`}
+                    Use the email on your Gigolab account.
                   </p>
                 </div>
 
@@ -312,23 +303,14 @@ export default function CompanyLoginForm() {
                       Signing in…
                     </>
                   ) : (
-                    "Sign in to portal"
+                    "Sign in"
                   )}
                 </button>
               </form>
-
-              <div className="border-t border-[#e8ecf5] bg-[#f8f9fc] px-6 py-4 text-center">
-                <Link
-                  href="/"
-                  className="text-sm font-medium text-zinc-700 transition-colors hover:text-zinc-900"
-                >
-                  ← Back to Gigolab website
-                </Link>
-              </div>
             </div>
 
             <p className="mt-4 text-center text-sm text-zinc-700 lg:hidden">
-              Use the lab code and password from your Gigolab registration email.
+              Sign in with your Gigolab email and password.
             </p>
           </section>
         </div>

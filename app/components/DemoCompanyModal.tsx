@@ -11,11 +11,11 @@ type CreatedCompany = {
   name: string;
 };
 
-function demoLoginUrl(labName?: string, labCode?: string) {
+function demoLoginUrl(labName?: string, contactEmail?: string) {
   const params = new URLSearchParams({ from: "demo" });
   if (labName?.trim()) params.set("lab", labName.trim());
-  if (labCode?.trim()) params.set("code", labCode.trim());
-  return `/company/login?${params.toString()}`;
+  if (contactEmail?.trim()) params.set("email", contactEmail.trim());
+  return `/login?${params.toString()}`;
 }
 
 function emptyDemoForm(): CompanyFormValues {
@@ -81,11 +81,10 @@ export function DemoCompanyModal({ isOpen, onClose }: DemoCompanyModalProps) {
         return;
       }
 
-      const createdCode = "code" in payload ? payload.code : form.labCode;
       const createdName = "name" in payload ? payload.name : form.name;
 
       onClose();
-      router.push(demoLoginUrl(createdName, createdCode));
+      router.push(demoLoginUrl(createdName, form.contact));
     } catch {
       setError("Could not create demo lab. Please try again.");
     } finally {

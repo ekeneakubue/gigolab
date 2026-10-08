@@ -9,6 +9,10 @@ export type UserRole =
   | "Manager"
   | "Staff"
   | "Lab Manager"
+  | "Lab Owner"
+  | "Lab Technician"
+  | "Lab Receptionist"
+  | "Lab HR"
   | "Supervisor"
   | "Receptionist"
   | "Technician";

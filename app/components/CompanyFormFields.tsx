@@ -30,6 +30,10 @@ type CompanyFormFieldsProps = {
   passwordMode?: "editable" | "readonly";
   passwordPlaceholder?: string;
   showPasswordToggle?: boolean;
+  /** Hide the password field (e.g. admin modals where credentials live on users). */
+  hidePassword?: boolean;
+  /** Hide the contact email and phone fields. */
+  hideContactFields?: boolean;
 };
 
 export function CompanyFormFields({
@@ -41,12 +45,14 @@ export function CompanyFormFields({
   passwordMode = "editable",
   passwordPlaceholder,
   showPasswordToggle = false,
+  hidePassword = false,
+  hideContactFields = false,
 }: CompanyFormFieldsProps) {
   const [showPassword, setShowPassword] = useState(false);
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
-      <div className="sm:col-span-1 flex flex-col items-center text-center">
+    <div className="space-y-4">
+      <div className="flex flex-col items-center text-center">
         <p className="text-sm font-bold text-zinc-950">Upload logo</p>
         <label
           className="group relative mx-auto mt-2 flex h-16 w-16 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-emerald-300 bg-emerald-50 text-emerald-700 shadow-sm transition-colors hover:border-emerald-400 hover:bg-emerald-100 focus-within:ring-2 focus-within:ring-emerald-200 focus-within:ring-offset-2"
@@ -87,7 +93,8 @@ export function CompanyFormFields({
         </label>
       </div>
 
-      <div className="sm:col-span-1 lg:col-span-2">
+      <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
+      <div>
         <label className="text-sm font-bold text-zinc-950">Lab Name</label>
         <input
           value={form.name}
@@ -101,6 +108,7 @@ export function CompanyFormFields({
         <input readOnly value={form.labCode} className={`${readOnlyClass} font-mono`} />
       </div>
 
+      {hidePassword ? null : (
       <div>
         <label className="text-sm font-bold text-zinc-950">Password</label>
         {passwordMode === "readonly" ? (
@@ -158,6 +166,7 @@ export function CompanyFormFields({
           />
         )}
       </div>
+      )}
 
       <div>
         <label className="text-sm font-bold text-zinc-950">Status</label>
@@ -178,8 +187,6 @@ export function CompanyFormFields({
         )}
       </div>
 
-      <p className="lg:col-span-3 text-sm font-medium text-zinc-800 -mt-1">{infoLine}</p>
-
       <div>
         <label className="text-sm font-bold text-zinc-950">Location</label>
         <input
@@ -188,23 +195,30 @@ export function CompanyFormFields({
           className={inputClass}
         />
       </div>
-      <div>
-        <label className="text-sm font-bold text-zinc-950">Contact email</label>
-        <input
-          type="email"
-          value={form.contact}
-          onChange={(e) => onChange((f) => ({ ...f, contact: e.target.value }))}
-          className={inputClass}
-        />
+      {hideContactFields ? null : (
+        <>
+          <div>
+            <label className="text-sm font-bold text-zinc-950">Contact email</label>
+            <input
+              type="email"
+              value={form.contact}
+              onChange={(e) => onChange((f) => ({ ...f, contact: e.target.value }))}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className="text-sm font-bold text-zinc-950">Phone</label>
+            <input
+              value={form.phone}
+              onChange={(e) => onChange((f) => ({ ...f, phone: e.target.value }))}
+              className={inputClass}
+            />
+          </div>
+        </>
+      )}
       </div>
-      <div>
-        <label className="text-sm font-bold text-zinc-950">Phone</label>
-        <input
-          value={form.phone}
-          onChange={(e) => onChange((f) => ({ ...f, phone: e.target.value }))}
-          className={inputClass}
-        />
-      </div>
+
+      <p className="text-sm font-medium text-zinc-800">{infoLine}</p>
     </div>
   );
 }

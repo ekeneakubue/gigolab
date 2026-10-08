@@ -5,14 +5,10 @@ import { getCompanySession } from "@/lib/company-auth";
 import { hashPassword } from "@/lib/password";
 import { prismaErrorResponse } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
+import { parseUserRole, toRoleLabel } from "@/lib/user-role";
 
-const COMPANY_ROLE_OPTIONS: UserRole[] = [
-  "Staff",
-  "Technician",
-  "Receptionist",
-  "Supervisor",
-  "LabManager",
-];
+/** Roles a company can assign to its own staff from the portal. */
+const COMPANY_ROLE_OPTIONS: UserRole[] = ["LabTechnician", "LabHR"];
 
 function toInitials(name: string) {
   const initials = name
@@ -24,11 +20,10 @@ function toInitials(name: string) {
   return initials || "NA";
 }
 
-function parseRole(value: string | undefined): UserRole {
-  if (!value) return "Staff";
-  if (value === "Lab Manager") return "LabManager";
-  if (COMPANY_ROLE_OPTIONS.includes(value as UserRole)) return value as UserRole;
-  return "Staff";
+function parseCompanyRole(value: string | undefined): UserRole | null {
+  if (!value) return COMPANY_ROLE_OPTIONS[0];
+  const role = parseUserRole(value);
+  return role && COMPANY_ROLE_OPTIONS.includes(role) ? role : null;
 }
 
 function mapUser(user: Prisma.UserGetPayload<object>) {
@@ -38,7 +33,7 @@ function mapUser(user: Prisma.UserGetPayload<object>) {
     initials: user.initials,
     email: user.email,
     imageUrl: user.imageUrl,
-    role: user.role === "LabManager" ? "Lab Manager" : user.role,
+    role: toRoleLabel(user.role),
     status: user.status,
     accessLabel: user.accessLabel,
     lastSeenAt: user.lastSeenAt,
@@ -85,8 +80,12 @@ export async function POST(request: Request) {
     const email = body.email?.trim().toLowerCase() ?? "";
     const password = body.password ?? "";
     const imageUrl = body.imageUrl?.trim() || null;
-    const role = parseRole(body.role);
+    const role = parseCompanyRole(body.role);
     const status = body.status ?? "Active";
+
+    if (!role) {
+      return NextResponse.json({ error: "Choose a valid role." }, { status: 400 });
+    }
 
     if (!name || !email || !password) {
       return NextResponse.json(
@@ -104,18 +103,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "A user with this email already exists." }, { status: 409 });
     }
 
-    const created = await prisma.user.create({
-      data: {
-        companyId: session.companyId,
-        name,
-        initials: toInitials(name),
-        email,
-        role,
-        status,
-        accessLabel: "Tests limited",
-        passwordHash: hashPassword(password),
-        imageUrl,
-      },
+    const created = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          companyId: session.companyId,
+          name,
+          initials: toInitials(name),
+          email,
+          role,
+          status,
+          accessLabel: "Tests limited",
+          passwordHash: hashPassword(password),
+          imageUrl,
+        },
+      });
+
+      await tx.company.update({
+        where: { id: session.companyId },
+        data: { userCount: { increment: 1 } },
+      });
+
+      return user;
     });
 
     return NextResponse.json(mapUser(created), { status: 201 });

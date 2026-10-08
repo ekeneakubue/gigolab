@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { Prisma, type AccountStatus, type UserRole } from "@prisma/client";
+import { Prisma, type AccountStatus } from "@prisma/client";
 
 import { hashPassword } from "@/lib/password";
-import { getOrCreatePlatformCompany } from "@/lib/platform-company";
 import { prisma } from "@/lib/prisma";
+import { parseUserRole, toRoleLabel } from "@/lib/user-role";
 
 type ApiUserResponse = {
   id: string;
@@ -39,7 +39,7 @@ function mapUserForApi(
     initials: user.initials,
     email: user.email,
     imageUrl: user.imageUrl ?? null,
-    role: user.role === "LabManager" ? "Lab Manager" : user.role,
+    role: toRoleLabel(user.role),
     status: user.status,
     accessLabel: user.accessLabel,
     createdAt: user.createdAt,
@@ -74,25 +74,40 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as {
       name?: string;
+      companyId?: string;
       email?: string;
       password?: string;
-      role?: UserRole;
+      role?: string;
       status?: AccountStatus;
       imageUrl?: string | null;
     };
 
     const name = body.name?.trim() ?? "";
+    const companyId = body.companyId?.trim() ?? "";
     const email = body.email?.trim().toLowerCase() ?? "";
     const password = body.password ?? "";
     const imageUrl = body.imageUrl?.trim() || null;
-    const role = body.role ?? "Staff";
+    const role = parseUserRole(body.role);
     const status = body.status ?? "Active";
 
-    if (!name || !email || !password) {
+    if (!role) {
+      return NextResponse.json({ error: "Choose a valid role." }, { status: 400 });
+    }
+
+    if (!name || !companyId || !email || !password) {
       return NextResponse.json(
-        { error: "Name, email, and password are required." },
+        { error: "Name, company, email, and password are required." },
         { status: 400 }
       );
+    }
+
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { id: true },
+    });
+
+    if (!company) {
+      return NextResponse.json({ error: "Select a company." }, { status: 400 });
     }
 
     const existing = await prisma.user.findUnique({
@@ -104,28 +119,35 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "A user with this email already exists." }, { status: 409 });
     }
 
-    const platformCompany = await getOrCreatePlatformCompany();
-
-    const created = await prisma.user.create({
-      data: {
-        companyId: platformCompany.id,
-        name,
-        initials: toInitials(name),
-        email,
-        role,
-        status,
-        accessLabel: "Tests limited",
-        passwordHash: hashPassword(password),
-        imageUrl,
-      },
-      include: {
-        company: {
-          select: {
-            id: true,
-            name: true,
+    const created = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          companyId: company.id,
+          name,
+          initials: toInitials(name),
+          email,
+          role,
+          status,
+          accessLabel: "Tests limited",
+          passwordHash: hashPassword(password),
+          imageUrl,
+        },
+        include: {
+          company: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-      },
+      });
+
+      await tx.company.update({
+        where: { id: company.id },
+        data: { userCount: { increment: 1 } },
+      });
+
+      return user;
     });
 
     return NextResponse.json(mapUserForApi(created), { status: 201 });

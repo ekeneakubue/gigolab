@@ -14,6 +14,7 @@ type UserRow = {
   email: string;
   imageUrl?: string | null;
   role: string;
+  companyId: string;
   company: string;
   status: "Active" | "Trial" | "Inactive";
   lastSeen: string;
@@ -24,10 +25,16 @@ type UserRow = {
 type NewUserForm = {
   image: string | null;
   name: string;
+  companyId: string;
   email: string;
   password: string;
   role: string;
   status: "Active" | "Trial" | "Inactive";
+};
+
+type CompanyOption = {
+  id: string;
+  name: string;
 };
 
 type ApiUser = {
@@ -52,6 +59,10 @@ const statusMeta: Record<string, { badge: string; dot: string }> = {
 
 const rolePills: Record<string, string> = {
   "Lab Manager": "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100",
+  "Lab Owner": "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-100",
+  "Lab Technician": "bg-zinc-100 text-zinc-700 ring-1 ring-zinc-200",
+  "Lab Receptionist": "bg-blue-50 text-blue-700 ring-1 ring-blue-100",
+  "Lab HR": "bg-amber-50 text-amber-800 ring-1 ring-amber-100",
   Supervisor: "bg-teal-50 text-teal-700 ring-1 ring-teal-100",
   Receptionist: "bg-blue-50 text-blue-700 ring-1 ring-blue-100",
   Admin: "bg-violet-50 text-violet-700 ring-1 ring-violet-100",
@@ -64,14 +75,15 @@ function isApiUser(payload: ApiUser | { error?: string }): payload is ApiUser {
   return "id" in payload && typeof payload.id === "string";
 }
 
-const roleOptions = ["Admin", "Manager", "Staff"] as const;
+const roleOptions = ["Admin", "Lab Owner", "Lab Technician", "Lab HR"] as const;
 
 const emptyForm: NewUserForm = {
   image: null,
   name: "",
+  companyId: "",
   email: "",
   password: "",
-  role: "Staff",
+  role: "Lab Technician",
   status: "Active",
 };
 
@@ -80,16 +92,57 @@ export default function UsersPageClient() {
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form, setForm] = useState<NewUserForm>(emptyForm);
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [error, setError] = useState("");
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
   const openAddUserModal = () => {
     setError("");
     setIsAddingUser(false);
     setShowPassword(false);
+    setEditingUserId(null);
     setForm(emptyForm);
     setIsModalOpen(true);
+    void loadCompanies();
+  };
+
+  const openEditUserModal = (user: UserRow) => {
+    setError("");
+    setIsAddingUser(false);
+    setShowPassword(false);
+    setEditingUserId(user.id);
+    setForm({
+      image: user.imageUrl ?? null,
+      name: user.name,
+      companyId: user.companyId,
+      email: user.email,
+      password: "",
+      role: user.role,
+      status: user.status,
+    });
+    setIsModalOpen(true);
+    void loadCompanies();
+  };
+
+  const loadCompanies = async () => {
+    try {
+      const response = await fetch("/api/companies");
+      if (!response.ok) {
+        setCompanies([]);
+        return;
+      }
+      const data = (await response.json()) as CompanyOption[];
+      setCompanies(
+        data
+          .filter((company) => company.id && company.name)
+          .sort((a, b) => a.name.localeCompare(b.name))
+      );
+    } catch {
+      setCompanies([]);
+    }
   };
 
   const formatDate = (value: string) =>
@@ -106,6 +159,7 @@ export default function UsersPageClient() {
     email: user.email,
     imageUrl: user.imageUrl,
     role: user.role,
+    companyId: user.company?.id ?? "",
     company: user.company?.name ?? "Unassigned",
     status: user.status,
     lastSeen: user.lastSeenAt ? formatDate(user.lastSeenAt) : "just now",
@@ -152,20 +206,25 @@ export default function UsersPageClient() {
   const submitNewUser = async (e: FormEvent) => {
     e.preventDefault();
     setError("");
-    if (!form.name.trim() || !form.email.trim() || !form.password.trim()) {
-      setError("Name, email, and password are required.");
+    if (!form.name.trim() || !form.companyId || !form.email.trim() || (!editingUserId && !form.password.trim())) {
+      setError(
+        editingUserId
+          ? "Name, company, and email are required."
+          : "Name, company, email, and password are required."
+      );
       return;
     }
 
     setIsAddingUser(true);
     try {
-      const response = await fetch("/api/users", {
-        method: "POST",
+      const response = await fetch(editingUserId ? `/api/users/${editingUserId}` : "/api/users", {
+        method: editingUserId ? "PATCH" : "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           name: form.name,
+          companyId: form.companyId,
           email: form.email,
           password: form.password,
           role: form.role,
@@ -180,11 +239,40 @@ export default function UsersPageClient() {
         return;
       }
 
-      setUsers((prev) => [mapApiUserToRow(payload), ...prev]);
+      const row = mapApiUserToRow(payload);
+      setUsers((prev) =>
+        editingUserId ? prev.map((user) => (user.id === editingUserId ? row : user)) : [row, ...prev]
+      );
       setForm(emptyForm);
+      setEditingUserId(null);
       setIsModalOpen(false);
     } finally {
       setIsAddingUser(false);
+    }
+  };
+
+  const deleteUser = async (user: UserRow) => {
+    const confirmed = window.confirm(`Delete "${user.name}"? This cannot be undone.`);
+    if (!confirmed) return;
+
+    setDeletingUserId(user.id);
+    try {
+      const response = await fetch(`/api/users/${user.id}`, { method: "DELETE" });
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        window.alert(payload.error ?? "Could not delete user.");
+        return;
+      }
+
+      setUsers((prev) => prev.filter((row) => row.id !== user.id));
+      if (editingUserId === user.id) {
+        setIsModalOpen(false);
+        setEditingUserId(null);
+      }
+    } catch {
+      window.alert("Could not delete user. Please try again.");
+    } finally {
+      setDeletingUserId(null);
     }
   };
 
@@ -288,6 +376,7 @@ export default function UsersPageClient() {
                     <th className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Company</th>
                     <th className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Status</th>
                     <th className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Last seen</th>
+                    <th className="px-4 py-3 text-right text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-emerald-50/80">
@@ -325,6 +414,50 @@ export default function UsersPageClient() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-zinc-500">{u.lastSeen}</td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="inline-flex items-center justify-end gap-1">
+                            <button
+                              type="button"
+                              onClick={() => openEditUserModal(u)}
+                              aria-label={`Edit ${u.name}`}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+                            >
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4" aria-hidden>
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"
+                                />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteUser(u)}
+                              disabled={deletingUserId === u.id}
+                              aria-label={`Delete ${u.name}`}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-100 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {deletingUserId === u.id ? (
+                                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden>
+                                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                  <path
+                                    className="opacity-75"
+                                    fill="currentColor"
+                                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                  />
+                                </svg>
+                              ) : (
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4" aria-hidden>
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16"
+                                  />
+                                </svg>
+                              )}
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -340,8 +473,10 @@ export default function UsersPageClient() {
           <div className="w-full max-w-5xl rounded-2xl border border-emerald-100 bg-white shadow-2xl">
             <div className="flex items-center justify-between px-6 py-3.5 border-b border-emerald-50">
               <div>
-                <h2 className="text-lg font-bold text-zinc-950">Add New User</h2>
-                <p className="text-sm font-medium text-zinc-800 mt-1">Create a platform user account</p>
+                <h2 className="text-lg font-bold text-zinc-950">{editingUserId ? "Edit User" : "Add New User"}</h2>
+                <p className="text-sm font-medium text-zinc-800 mt-1">
+                  {editingUserId ? "Update this user account" : "Create a platform user account"}
+                </p>
               </div>
               <button
                 type="button"
@@ -351,9 +486,8 @@ export default function UsersPageClient() {
                 Close
               </button>
             </div>
-            <form onSubmit={submitNewUser} className="px-6 py-4 space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-3">
-                <div className="sm:col-span-1 flex flex-col items-center text-center">
+            <form onSubmit={submitNewUser} className="px-6 py-4 space-y-4">
+              <div className="flex flex-col items-center text-center">
                   <p className="text-sm font-bold text-zinc-950">Upload image</p>
                   <label
                     className="group relative mx-auto mt-2 flex h-16 w-16 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-emerald-300 bg-emerald-50 text-emerald-700 shadow-sm transition-colors hover:border-emerald-400 hover:bg-emerald-100 focus-within:ring-2 focus-within:ring-emerald-200 focus-within:ring-offset-2"
@@ -392,14 +526,33 @@ export default function UsersPageClient() {
                       </svg>
                     )}
                   </label>
-                </div>
-                <div className="sm:col-span-1 lg:col-span-2">
+              </div>
+              <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-3">
+                <div>
                   <label className="text-sm font-bold text-zinc-950">Full name</label>
                   <input
                     value={form.name}
                     onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                     className={userInputClass}
                   />
+                </div>
+                <div>
+                  <label className="text-sm font-bold text-zinc-950" htmlFor="new-user-company">
+                    Company
+                  </label>
+                  <select
+                    id="new-user-company"
+                    value={form.companyId}
+                    onChange={(e) => setForm((f) => ({ ...f, companyId: e.target.value }))}
+                    className={userInputClass}
+                  >
+                    <option value="">Select company</option>
+                    {companies.map((company) => (
+                      <option key={company.id} value={company.id}>
+                        {company.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="text-sm font-bold text-zinc-950">Email</label>
@@ -411,13 +564,17 @@ export default function UsersPageClient() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-bold text-zinc-950">Password</label>
+                  <label className="text-sm font-bold text-zinc-950">
+                    Password
+                    {editingUserId ? <span className="font-medium text-zinc-500"> (optional)</span> : null}
+                  </label>
                   <div className="relative mt-1.5">
                     <input
                       type={showPassword ? "text" : "password"}
                       value={form.password}
                       onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
                       autoComplete="new-password"
+                      placeholder={editingUserId ? "Leave blank to keep the current password" : undefined}
                       className={`${userInputClass} mt-0 pr-12`}
                     />
                     <button
@@ -446,6 +603,9 @@ export default function UsersPageClient() {
                     onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
                     className={userInputClass}
                   >
+                    {editingUserId && !(roleOptions as readonly string[]).includes(form.role) ? (
+                      <option value={form.role}>{form.role} (current)</option>
+                    ) : null}
                     {roleOptions.map((role) => (
                       <option key={role} value={role}>
                         {role}
@@ -492,8 +652,10 @@ export default function UsersPageClient() {
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                         />
                       </svg>
-                      Adding...
+                      Saving...
                     </>
+                  ) : editingUserId ? (
+                    "Save changes"
                   ) : (
                     "Add user"
                   )}

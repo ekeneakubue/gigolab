@@ -70,23 +70,17 @@ export async function POST(request: Request) {
     const password = body.password ?? "";
     const logoUrl = body.logoUrl?.trim() || null;
 
-    if (!name || !location || !contactEmail) {
+    if (!name || !location) {
       return NextResponse.json(
-        { error: "Name, location, and contact email are required." },
-        { status: 400 }
-      );
-    }
-
-    if (!password.trim()) {
-      return NextResponse.json(
-        { error: "Password is required." },
+        { error: "Name and location are required." },
         { status: 400 }
       );
     }
 
     const requestedCode = body.code?.trim();
     const status = body.status ?? (requestedCode && isDemoCompanyCode(requestedCode) ? "Trial" : "Active");
-    const passwordHash = hashPassword(password);
+    // Portal sign-in is per user; when no company password is supplied, store an unguessable one.
+    const passwordHash = hashPassword(password.trim() || crypto.randomUUID());
     const candidates = buildCodeCandidates(requestedCode);
 
     for (const code of candidates) {

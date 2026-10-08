@@ -25,12 +25,16 @@ enum CompanyPlan {
   Pinnacle
 }
 
-/// Matches app roles; `LabManager` maps to the display label "Lab Manager".
+/// Matches app roles. Spaced names are display labels stored via `@map`.
 enum UserRole {
   Admin
   Manager
   Staff
   LabManager       @map("Lab Manager")
+  LabOwner         @map("Lab Owner")
+  LabTechnician    @map("Lab Technician")
+  LabReceptionist  @map("Lab Receptionist")
+  LabHR            @map("Lab HR")
   Supervisor
   Receptionist
   Technician

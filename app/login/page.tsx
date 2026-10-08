@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 
-import CompanyLoginForm from "./company-login-form";
+import LoginForm from "./login-form";
 
-export default function CompanyLoginPage() {
+export default function LoginPage() {
   return (
     <Suspense
       fallback={
@@ -11,7 +11,7 @@ export default function CompanyLoginPage() {
         </div>
       }
     >
-      <CompanyLoginForm />
+      <LoginForm />
     </Suspense>
   );
 }

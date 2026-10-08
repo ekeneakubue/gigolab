@@ -262,7 +262,7 @@ export default function CompanySidebar() {
     try {
       await fetch("/api/company/auth/logout", { method: "POST" });
       startTransition(() => {
-        router.push("/company/login");
+        router.push("/login");
       });
     } finally {
       setIsSigningOut(false);
@@ -891,15 +891,6 @@ export default function CompanySidebar() {
       </nav>
 
       <div className="border-t border-[#e7ebf4] px-3 py-4 space-y-1">
-        <Link
-          href="/"
-          className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5 shrink-0 text-sky-600">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7 7-7M3 12h18" />
-          </svg>
-          Back to site
-        </Link>
         <div className="flex items-center gap-3 rounded-xl px-3 py-2.5">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-zinc-700 text-xs font-bold">
             {company?.initials ?? "—"}
