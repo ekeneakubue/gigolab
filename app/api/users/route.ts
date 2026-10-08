@@ -3,6 +3,7 @@ import { Prisma, type AccountStatus } from "@prisma/client";
 
 import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
+import { persistImageReference, storageErrorStatus } from "@/lib/r2";
 import { parseUserRole, toRoleLabel } from "@/lib/user-role";
 
 type ApiUserResponse = {
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
     const companyId = body.companyId?.trim() ?? "";
     const email = body.email?.trim().toLowerCase() ?? "";
     const password = body.password ?? "";
-    const imageUrl = body.imageUrl?.trim() || null;
+    const imageUrl = await persistImageReference(body.imageUrl?.trim() || null, "avatars");
     const role = parseUserRole(body.role);
     const status = body.status ?? "Active";
 
@@ -151,7 +152,11 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(mapUserForApi(created), { status: 201 });
-  } catch {
+  } catch (error) {
+    const storageError = storageErrorStatus(error);
+    if (storageError) {
+      return NextResponse.json({ error: storageError.message }, { status: storageError.status });
+    }
     return NextResponse.json({ error: "Failed to create user." }, { status: 500 });
   }
 }

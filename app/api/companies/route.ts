@@ -6,6 +6,7 @@ import { generateCompanyCode, isValidCompanyCode } from "@/lib/company-code";
 import { hashPassword } from "@/lib/password";
 import { isUniqueConstraintError, prismaErrorResponse } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
+import { persistImageReference, storageErrorStatus } from "@/lib/r2";
 
 function toInitials(name: string) {
   const initials = name
@@ -68,7 +69,7 @@ export async function POST(request: Request) {
     const contactEmail = body.contact?.trim() ?? "";
     const phone = body.phone?.trim() ?? null;
     const password = body.password ?? "";
-    const logoUrl = body.logoUrl?.trim() || null;
+    const logoUrl = await persistImageReference(body.logoUrl?.trim() || null, "logos");
 
     if (!name || !location) {
       return NextResponse.json(
@@ -114,6 +115,10 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   } catch (error) {
+    const storageError = storageErrorStatus(error);
+    if (storageError) {
+      return NextResponse.json({ error: storageError.message }, { status: storageError.status });
+    }
     const { status, message } = prismaErrorResponse(error, "Failed to create company.");
     return NextResponse.json({ error: message }, { status });
   }

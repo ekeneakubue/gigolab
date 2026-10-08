@@ -4,6 +4,7 @@ import { Prisma, type AccountStatus } from "@prisma/client";
 import { hashPassword } from "@/lib/password";
 import { prismaErrorResponse } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
+import { deleteStoredImage, persistImageReference, replaceStoredImage, storageErrorStatus } from "@/lib/r2";
 import { parseUserRole, toRoleLabel } from "@/lib/user-role";
 
 type ApiUserResponse = {
@@ -79,7 +80,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const companyId = body.companyId?.trim() ?? "";
     const email = body.email?.trim().toLowerCase() ?? "";
     const password = body.password?.trim() ?? "";
-    const imageUrl = body.imageUrl?.trim() || null;
+    const imageUrl = await persistImageReference(body.imageUrl?.trim() || null, "avatars");
     const role = parseUserRole(body.role);
 
     if (!role) {
@@ -148,8 +149,14 @@ export async function PATCH(request: Request, context: RouteContext) {
       return user;
     });
 
+    await replaceStoredImage(existing.imageUrl, imageUrl);
+
     return NextResponse.json(mapUserForApi(updated));
   } catch (error) {
+    const storageError = storageErrorStatus(error);
+    if (storageError) {
+      return NextResponse.json({ error: storageError.message }, { status: storageError.status });
+    }
     const { status, message } = prismaErrorResponse(error, "Failed to update user.");
     return NextResponse.json({ error: message }, { status });
   }
@@ -173,6 +180,8 @@ export async function DELETE(_request: Request, context: RouteContext) {
         });
       }
     });
+
+    await deleteStoredImage(existing.imageUrl);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

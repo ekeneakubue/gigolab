@@ -5,6 +5,7 @@ import { getCompanySession } from "@/lib/company-auth";
 import { hashPassword } from "@/lib/password";
 import { prismaErrorResponse } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
+import { persistImageReference, storageErrorStatus } from "@/lib/r2";
 import { parseUserRole, toRoleLabel } from "@/lib/user-role";
 
 /** Roles a company can assign to its own staff from the portal. */
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
     const name = body.name?.trim() ?? "";
     const email = body.email?.trim().toLowerCase() ?? "";
     const password = body.password ?? "";
-    const imageUrl = body.imageUrl?.trim() || null;
+    const imageUrl = await persistImageReference(body.imageUrl?.trim() || null, "avatars");
     const role = parseCompanyRole(body.role);
     const status = body.status ?? "Active";
 
@@ -128,6 +129,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json(mapUser(created), { status: 201 });
   } catch (error) {
+    const storageError = storageErrorStatus(error);
+    if (storageError) {
+      return NextResponse.json({ error: storageError.message }, { status: storageError.status });
+    }
     const { status, message } = prismaErrorResponse(error, "Failed to create user.");
     return NextResponse.json({ error: message }, { status });
   }

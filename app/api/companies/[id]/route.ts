@@ -4,6 +4,7 @@ import type { AccountStatus } from "@prisma/client";
 import { hashPassword } from "@/lib/password";
 import { prismaErrorResponse } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
+import { deleteStoredImage, persistImageReference, replaceStoredImage, storageErrorStatus } from "@/lib/r2";
 
 function toInitials(name: string) {
   const initials = name
@@ -39,7 +40,9 @@ export async function PATCH(request: Request, context: RouteContext) {
     const phone = body.phone === undefined ? undefined : body.phone.trim() || null;
     const password = body.password?.trim() ?? "";
     const logoUrl =
-      body.logoUrl === undefined ? undefined : body.logoUrl?.trim() || null;
+      body.logoUrl === undefined
+        ? undefined
+        : await persistImageReference(body.logoUrl?.trim() || null, "logos");
 
     if (!name || !location) {
       return NextResponse.json(
@@ -70,8 +73,16 @@ export async function PATCH(request: Request, context: RouteContext) {
       },
     });
 
+    if (logoUrl !== undefined) {
+      await replaceStoredImage(existing.logoUrl, logoUrl);
+    }
+
     return NextResponse.json(updated);
   } catch (error) {
+    const storageError = storageErrorStatus(error);
+    if (storageError) {
+      return NextResponse.json({ error: storageError.message }, { status: storageError.status });
+    }
     const { status, message } = prismaErrorResponse(error, "Failed to update company.");
     return NextResponse.json({ error: message }, { status });
   }
@@ -87,6 +98,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
     }
 
     await prisma.company.delete({ where: { id } });
+    await deleteStoredImage(existing.logoUrl);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

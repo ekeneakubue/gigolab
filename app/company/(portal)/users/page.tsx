@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
-import { readImageFile } from "@/lib/read-image-file";
+import { uploadImageFile } from "@/lib/upload-image";
 
 const userInputClass =
   "mt-1.5 h-10 w-full rounded-xl border border-emerald-200 px-3 text-base font-medium text-zinc-900 placeholder:text-zinc-600 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100";
@@ -77,6 +77,7 @@ export default function CompanyUsersPage() {
   const [formError, setFormError] = useState("");
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
@@ -476,15 +477,19 @@ export default function CompanyUsersPage() {
                       className="sr-only"
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
+                        e.target.value = "";
                         if (!file) {
                           setForm((f) => ({ ...f, image: null }));
                           return;
                         }
+                        setIsUploadingImage(true);
                         try {
-                          const dataUrl = await readImageFile(file);
-                          setForm((f) => ({ ...f, image: dataUrl }));
-                        } catch {
-                          setFormError("Could not read selected image.");
+                          const url = await uploadImageFile(file, "avatars");
+                          setForm((f) => ({ ...f, image: url }));
+                        } catch (error) {
+                          setFormError(error instanceof Error ? error.message : "Could not upload image.");
+                        } finally {
+                          setIsUploadingImage(false);
                         }
                       }}
                     />
@@ -503,6 +508,7 @@ export default function CompanyUsersPage() {
                       </svg>
                     )}
                   </label>
+                  {isUploadingImage ? <p className="mt-2 text-xs font-medium text-zinc-600">Uploading…</p> : null}
                 </div>
                 <div className="sm:col-span-2">
                   <label className="text-sm font-bold text-zinc-950">Full name</label>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { readImageFile } from "@/lib/read-image-file";
+import { uploadImageFile } from "@/lib/upload-image";
 
 export type CompanyFormValues = {
   logo: string | null;
@@ -49,6 +49,7 @@ export function CompanyFormFields({
   hideContactFields = false,
 }: CompanyFormFieldsProps) {
   const [showPassword, setShowPassword] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
   return (
     <div className="space-y-4">
@@ -64,15 +65,19 @@ export function CompanyFormFields({
             className="sr-only"
             onChange={async (e) => {
               const file = e.target.files?.[0];
+              e.target.value = "";
               if (!file) {
                 onChange((f) => ({ ...f, logo: null }));
                 return;
               }
+              setIsUploadingLogo(true);
               try {
-                const dataUrl = await readImageFile(file);
-                onChange((f) => ({ ...f, logo: dataUrl }));
-              } catch {
-                onImageError?.("Could not read selected image.");
+                const url = await uploadImageFile(file, "logos");
+                onChange((f) => ({ ...f, logo: url }));
+              } catch (error) {
+                onImageError?.(error instanceof Error ? error.message : "Could not upload image.");
+              } finally {
+                setIsUploadingLogo(false);
               }
             }}
           />
@@ -91,6 +96,7 @@ export function CompanyFormFields({
             </svg>
           )}
         </label>
+        {isUploadingLogo ? <p className="mt-2 text-xs font-medium text-zinc-600">Uploading…</p> : null}
       </div>
 
       <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">

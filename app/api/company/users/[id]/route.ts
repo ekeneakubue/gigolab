@@ -5,6 +5,7 @@ import { getCompanySession } from "@/lib/company-auth";
 import { hashPassword } from "@/lib/password";
 import { prismaErrorResponse } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
+import { deleteStoredImage, persistImageReference, replaceStoredImage, storageErrorStatus } from "@/lib/r2";
 import { parseUserRole, toRoleLabel } from "@/lib/user-role";
 
 /** Roles a company can assign to its own staff from the portal. */
@@ -59,7 +60,10 @@ export async function PATCH(request: Request, context: RouteContext) {
     const name = body.name?.trim() ?? "";
     const email = body.email?.trim().toLowerCase() ?? "";
     const password = body.password?.trim() ?? "";
-    const imageUrl = body.imageUrl === undefined ? undefined : body.imageUrl?.trim() || null;
+    const imageUrl =
+      body.imageUrl === undefined
+        ? undefined
+        : await persistImageReference(body.imageUrl?.trim() || null, "avatars");
 
     if (!name || !email) {
       return NextResponse.json({ error: "Name and email are required." }, { status: 400 });
@@ -104,8 +108,16 @@ export async function PATCH(request: Request, context: RouteContext) {
       },
     });
 
+    if (imageUrl !== undefined) {
+      await replaceStoredImage(existing.imageUrl, imageUrl);
+    }
+
     return NextResponse.json(mapUser(updated));
   } catch (error) {
+    const storageError = storageErrorStatus(error);
+    if (storageError) {
+      return NextResponse.json({ error: storageError.message }, { status: storageError.status });
+    }
     const { status, message } = prismaErrorResponse(error, "Failed to update user.");
     return NextResponse.json({ error: message }, { status });
   }
@@ -122,7 +134,7 @@ export async function DELETE(_request: Request, context: RouteContext) {
 
     const existing = await prisma.user.findFirst({
       where: { id, companyId: session.companyId },
-      select: { id: true },
+      select: { id: true, imageUrl: true },
     });
     if (!existing) {
       return NextResponse.json({ error: "User not found." }, { status: 404 });
@@ -135,6 +147,8 @@ export async function DELETE(_request: Request, context: RouteContext) {
         data: { userCount: { decrement: 1 } },
       });
     });
+
+    await deleteStoredImage(existing.imageUrl);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

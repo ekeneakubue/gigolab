@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
-import { readImageFile } from "@/lib/read-image-file";
+import { uploadImageFile } from "@/lib/upload-image";
 
 const userInputClass =
   "mt-1.5 h-10 w-full rounded-xl border border-emerald-200 px-3 text-base font-medium text-zinc-900 placeholder:text-zinc-600 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100";
@@ -98,6 +98,7 @@ export default function UsersPageClient() {
   const [showPassword, setShowPassword] = useState(false);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const openAddUserModal = () => {
     setError("");
@@ -565,15 +566,19 @@ export default function UsersPageClient() {
                       className="sr-only"
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
+                        e.target.value = "";
                         if (!file) {
                           setForm((f) => ({ ...f, image: null }));
                           return;
                         }
+                        setIsUploadingImage(true);
                         try {
-                          const dataUrl = await readImageFile(file);
-                          setForm((f) => ({ ...f, image: dataUrl }));
-                        } catch {
-                          setError("Could not read selected image.");
+                          const url = await uploadImageFile(file, "avatars");
+                          setForm((f) => ({ ...f, image: url }));
+                        } catch (error) {
+                          setError(error instanceof Error ? error.message : "Could not upload image.");
+                        } finally {
+                          setIsUploadingImage(false);
                         }
                       }}
                     />
@@ -592,6 +597,7 @@ export default function UsersPageClient() {
                       </svg>
                     )}
                   </label>
+                  {isUploadingImage ? <p className="mt-2 text-xs font-medium text-zinc-600">Uploading…</p> : null}
               </div>
               <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-3">
                 <div>
