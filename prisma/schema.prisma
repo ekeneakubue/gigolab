@@ -61,12 +61,13 @@ model Company {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
-  users        User[]
-  ageGroups    AgeGroup[]
-  departments  Department[]
-  doctors      Doctor[]
-  tests        Test[]
-  packages     Package[]
+  users                User[]
+  ageGroups            AgeGroup[]
+  departments          Department[]
+  doctors              Doctor[]
+  tests                Test[]
+  packages             Package[]
+  sampleRegistrations  SampleRegistration[]
 
   @@index([status])
   @@map("companies")
@@ -156,6 +157,8 @@ model Doctor {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  sampleRegistrations SampleRegistration[]
+
   @@index([companyId])
   @@map("doctors")
 }
@@ -182,10 +185,51 @@ model Test {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
+  registrationTests SampleRegistrationTest[]
+
   @@index([companyId])
   @@index([departmentId])
   @@index([subDepartmentId])
   @@map("tests")
+}
+
+model SampleRegistration {
+  id             String   @id @default(cuid())
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sampleCode     String
+  sampleName     String
+  category       String
+  age            String
+  doctorId       String
+  doctor         Doctor   @relation(fields: [doctorId], references: [id], onDelete: Restrict)
+  patientId      String
+  sampleType     String
+  collectionDate DateTime
+  registeredAt   DateTime
+  tests          SampleRegistrationTest[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([companyId, sampleCode])
+  @@index([companyId])
+  @@index([doctorId])
+  @@map("sample_registrations")
+}
+
+model SampleRegistrationTest {
+  id             String             @id @default(cuid())
+  registrationId String
+  registration   SampleRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  testId         String
+  test           Test               @relation(fields: [testId], references: [id], onDelete: Restrict)
+  result         String             @default("")
+  normalRange    String             @default("")
+  sortOrder      Int                @default(0)
+
+  @@index([registrationId])
+  @@index([testId])
+  @@map("sample_registration_tests")
 }
 
 model Package {
