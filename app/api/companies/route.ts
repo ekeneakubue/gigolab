@@ -3,6 +3,8 @@ import { CompanyPlan, type AccountStatus } from "@prisma/client";
 
 import { generateDemoCompanyCode, isDemoCompanyCode } from "@/lib/company-demo";
 import { generateCompanyCode, isValidCompanyCode } from "@/lib/company-code";
+import { normalizeCompanyBrandColor } from "@/lib/company-brand-colors";
+import { withCompanyFeatureIds } from "@/lib/company-features";
 import { hashPassword } from "@/lib/password";
 import { isUniqueConstraintError, prismaErrorResponse } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
@@ -39,12 +41,15 @@ function buildCodeCandidates(preferred?: string) {
 export async function GET() {
   try {
     const companies = await prisma.company.findMany({
+      include: {
+        features: { select: { featureId: true } },
+      },
       orderBy: {
         createdAt: "desc",
       },
     });
 
-    return NextResponse.json(companies);
+    return NextResponse.json(companies.map(withCompanyFeatureIds));
   } catch (error) {
     const { status, message } = prismaErrorResponse(error, "Failed to load companies.");
     return NextResponse.json({ error: message }, { status });
@@ -62,6 +67,7 @@ export async function POST(request: Request) {
       contact?: string;
       phone?: string;
       logoUrl?: string | null;
+      brandColor?: string;
     };
 
     const name = body.name?.trim() ?? "";
@@ -69,6 +75,7 @@ export async function POST(request: Request) {
     const contactEmail = body.contact?.trim() ?? "";
     const phone = body.phone?.trim() ?? null;
     const password = body.password ?? "";
+    const brandColor = normalizeCompanyBrandColor(body.brandColor);
     const logoUrl = await persistImageReference(body.logoUrl?.trim() || null, "logos");
 
     if (!name || !location) {
@@ -86,6 +93,11 @@ export async function POST(request: Request) {
 
     for (const code of candidates) {
       try {
+        const activeFeatures = await prisma.appFeature.findMany({
+          where: { status: "Active" },
+          select: { id: true },
+        });
+
         const created = await prisma.company.create({
           data: {
             code,
@@ -98,10 +110,19 @@ export async function POST(request: Request) {
             contactEmail,
             phone,
             logoUrl,
+            brandColor,
+            features: {
+              create: activeFeatures.map((feature) => ({
+                featureId: feature.id,
+              })),
+            },
+          },
+          include: {
+            features: { select: { featureId: true } },
           },
         });
 
-        return NextResponse.json(created, { status: 201 });
+        return NextResponse.json(withCompanyFeatureIds(created), { status: 201 });
       } catch (error) {
         if (isUniqueConstraintError(error, "code")) {
           continue;

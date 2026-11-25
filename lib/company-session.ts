@@ -6,6 +6,12 @@ export type CompanySession = {
   code: string;
   name: string;
   initials: string;
+  userId?: string;
+  userName?: string;
+  userInitials?: string;
+  role?: string;
+  companyRoleId?: string;
+  dashboardRoute?: string;
 };
 
 type SignedSessionPayload = CompanySession & {
@@ -100,6 +106,14 @@ export async function parseCompanySessionToken(token: string | undefined | null)
       code: payload.code,
       name: payload.name,
       initials: payload.initials ?? payload.name.slice(0, 2).toUpperCase(),
+      userId: typeof payload.userId === "string" ? payload.userId : undefined,
+      userName: typeof payload.userName === "string" ? payload.userName : undefined,
+      userInitials: typeof payload.userInitials === "string" ? payload.userInitials : undefined,
+      role: typeof payload.role === "string" ? payload.role : undefined,
+      companyRoleId:
+        typeof payload.companyRoleId === "string" ? payload.companyRoleId : undefined,
+      dashboardRoute:
+        typeof payload.dashboardRoute === "string" ? payload.dashboardRoute : undefined,
     };
   } catch {
     return null;

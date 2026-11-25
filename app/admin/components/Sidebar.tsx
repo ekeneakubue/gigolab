@@ -1,8 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
+
+type AdminSession = {
+  userId: string;
+  name: string;
+  email: string;
+  initials: string;
+  role: string;
+};
 
 const navItems = [
   {
@@ -18,6 +26,19 @@ const navItems = [
     ),
   },
   {
+    label: "Demo Applicants",
+    href: "/admin/demo-applicants",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M9 12h6M9 16h4M8 4h8l1 2h3a1 1 0 011 1v13a1 1 0 01-1 1H6a1 1 0 01-1-1V7a1 1 0 011-1h3l1-2z"
+        />
+      </svg>
+    ),
+  },
+  {
     label: "Companies",
     href: "/admin/companies",
     icon: (
@@ -27,13 +48,34 @@ const navItems = [
     ),
   },
   {
+    label: "App Features",
+    href: "/admin/app-features",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h6v6H4zM14 7h6v6h-6zM4 17h6v3H4zM14 14h6v6h-6z" />
+      </svg>
+    ),
+  },
+  {
+    label: "Roles",
+    href: "/admin/roles",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M12 3l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V7l8-4z"
+        />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9.5 12l1.5 1.5L14.5 10" />
+      </svg>
+    ),
+  },
+  {
     label: "Users",
     href: "/admin/users",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
       </svg>
     ),
   },
@@ -42,8 +84,11 @@ const navItems = [
     href: "/admin/settings",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
-        <circle cx="12" cy="12" r="3" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M12 15.5a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9c.26.604.852 1.01 1.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"
+        />
       </svg>
     ),
   },
@@ -51,11 +96,48 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [admin, setAdmin] = useState<AdminSession | null>(null);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+  const [, startTransition] = useTransition();
 
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSession() {
+      try {
+        const response = await fetch("/api/admin/auth/session");
+        if (!response.ok) {
+          if (!cancelled) setAdmin(null);
+          return;
+        }
+        const data = (await response.json()) as { admin: AdminSession | null };
+        if (!cancelled) setAdmin(data.admin);
+      } catch {
+        if (!cancelled) setAdmin(null);
+      }
+    }
+    void loadSession();
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
+
+  const signOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await fetch("/api/admin/auth/logout", { method: "POST" });
+      startTransition(() => {
+        router.push("/login");
+      });
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   return (
     <>
@@ -165,13 +247,24 @@ export default function Sidebar() {
         </Link>
         <div className="flex items-center gap-3 rounded-xl px-3 py-2.5">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">
-            SA
+            {admin?.initials ?? "SA"}
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-zinc-800 truncate">Super Admin</p>
-            <p className="text-xs text-zinc-400 truncate">admin@gigolab.com</p>
+            <p className="text-sm font-semibold text-zinc-800 truncate">{admin?.name ?? "Super Admin"}</p>
+            <p className="text-xs text-zinc-400 truncate">{admin?.email ?? "admin@gigolab.com"}</p>
           </div>
         </div>
+        <button
+          type="button"
+          onClick={signOut}
+          disabled={isSigningOut}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5 shrink-0 text-rose-600">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+          </svg>
+          {isSigningOut ? "Signing out…" : "Sign out"}
+        </button>
       </div>
     </aside>
     </>

@@ -2,11 +2,20 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
+import { useEffect, useRef, useState, useTransition, type CSSProperties, type ReactNode } from "react";
 
-import { COMPANY_MASTERS_MENU } from "@/lib/company-masters-menu";
-import { COMPANY_REPORTS_MENU } from "@/lib/company-reports-menu";
-import { COMPANY_TRANSACTION_MENU } from "@/lib/company-transaction-menu";
+import {
+  navFeatureColors,
+  navModuleHref,
+  navModuleTab,
+  type CompanyNavFeature,
+  type CompanyNavModule,
+} from "@/lib/company-nav";
+import {
+  brandColorPrefersLightText,
+  darkenBrandColor,
+  normalizeCompanyBrandColor,
+} from "@/lib/company-brand-colors";
 
 import { useFlyoutPosition } from "./use-flyout-position";
 
@@ -16,127 +25,138 @@ type CompanySession = {
   name: string;
   initials: string;
   logoUrl: string | null;
+  brandColor?: string | null;
+  userName?: string | null;
+  userInitials?: string | null;
+  userImageUrl?: string | null;
+  role?: string | null;
 };
 
-const navItems = [
-  {
-    label: "Overview",
-    href: "/company",
-    iconColor: "text-emerald-600",
-    iconActive: "text-emerald-700",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+function FeatureIcon({ name }: { name: string }) {
+  const key = name.toLowerCase();
+  if (key.includes("overview") || key.includes("dashboard")) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-5 w-5">
         <rect x="3" y="3" width="7" height="7" rx="1.5" />
         <rect x="14" y="3" width="7" height="7" rx="1.5" />
         <rect x="3" y="14" width="7" height="7" rx="1.5" />
         <rect x="14" y="14" width="7" height="7" rx="1.5" />
       </svg>
-    ),
-  },
-  {
-    label: "Users",
-    href: "/company/users",
-    iconColor: "text-indigo-600",
-    iconActive: "text-indigo-700",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+    );
+  }
+  if (key.includes("admin")) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-5 w-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6" />
+      </svg>
+    );
+  }
+  if (key.includes("diagnostic")) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-5 w-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 3h6M10 3v6.5L5.5 18a3 3 0 0 0 2.6 4.5h8a3 3 0 0 0 2.6-4.5L14 9.5V3" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 14h7" />
+      </svg>
+    );
+  }
+  if (key.includes("pharmacy")) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-5 w-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 3.5 3.5 10.5a3 3 0 0 0 0 4.2l6 6a3 3 0 0 0 4.2 0l7-7a3 3 0 0 0 0-4.2l-6-6a3 3 0 0 0-4.2 0Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 12.5h5M11 10v5" />
+      </svg>
+    );
+  }
+  if (key.includes("medical")) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-5 w-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 11c0 5.5-7 10-7 10Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v6M9 11h6" />
+      </svg>
+    );
+  }
+  if (key.includes("referal") || key.includes("referral")) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-5 w-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
         <circle cx="9" cy="7" r="4" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
       </svg>
-    ),
-  },
-  {
-    label: "Masters",
-    href: "/company/masters",
-    hasSubmenu: true,
-    iconColor: "text-violet-600",
-    iconActive: "text-violet-700",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 7.5A2.5 2.5 0 0 1 6.5 5h11A2.5 2.5 0 0 1 20 7.5v9A2.5 2.5 0 0 1 17.5 19h-11A2.5 2.5 0 0 1 4 16.5z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8 9h8M8 12h8M8 15h5" />
+    );
+  }
+  if (key.includes("insurance")) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-5 w-5">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V7l8-4Z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4" />
       </svg>
-    ),
-  },
-  {
-    label: "Transactions",
-    href: "/company/transactions",
-    hasSubmenu: true,
-    iconColor: "text-blue-600",
-    iconActive: "text-blue-700",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h11M7 7l3-3M7 7l3 3" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M17 17H6M17 17l-3-3M17 17l-3 3" />
-      </svg>
-    ),
-  },
-  {
-    label: "Reports",
-    href: "/company/reports",
-    hasSubmenu: true,
-    iconColor: "text-amber-600",
-    iconActive: "text-amber-700",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+    );
+  }
+  if (key.includes("report")) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-5 w-5">
         <path strokeLinecap="round" strokeLinejoin="round" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M14 2v6h6" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M16 13H8M16 17H8M10 9H8" />
       </svg>
-    ),
-  },
-  {
-    label: "Utilities",
-    href: "/company/utilities",
-    iconColor: "text-teal-600",
-    iconActive: "text-teal-700",
-    icon: (
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M14.7 6.3a1 1 0 0 0 1.4 0l1-1a1 1 0 0 1 1.4 0l.2.2a1 1 0 0 1 0 1.4l-1 1a1 1 0 0 0 0 1.4l.4.4a1 1 0 0 0 1.1.22l1.3-.55a1 1 0 0 1 1.3.54l.1.28a1 1 0 0 1-.54 1.3l-1.3.55a1 1 0 0 0-.6.94v.56a1 1 0 0 0 .6.93l1.3.56a1 1 0 0 1 .54 1.3l-.1.28a1 1 0 0 1-1.3.54l-1.3-.55a1 1 0 0 0-1.1.22l-.4.4a1 1 0 0 0 0 1.4l1 1a1 1 0 0 1 0 1.4l-.2.2a1 1 0 0 1-1.4 0l-1-1a1 1 0 0 0-1.4 0l-.4.4a1 1 0 0 0-.22 1.1l.55 1.3a1 1 0 0 1-.54 1.3l-.28.1a1 1 0 0 1-1.3-.54l-.56-1.3a1 1 0 0 0-.93-.6h-.56a1 1 0 0 0-.94.6l-.55 1.3a1 1 0 0 1-1.3.54l-.28-.1a1 1 0 0 1-.54-1.3l.55-1.3a1 1 0 0 0-.22-1.1l-.4-.4a1 1 0 0 0-1.4 0l-1 1a1 1 0 0 1-1.4 0l-.2-.2a1 1 0 0 1 0-1.4l1-1a1 1 0 0 0 0-1.4l-.4-.4a1 1 0 0 0-1.1-.22l-1.3.55a1 1 0 0 1-1.3-.54l-.1-.28a1 1 0 0 1 .54-1.3l1.3-.56a1 1 0 0 0 .6-.93v-.56a1 1 0 0 0-.6-.94l-1.3-.55a1 1 0 0 1-.54-1.3l.1-.28a1 1 0 0 1 1.3-.54l1.3.55a1 1 0 0 0 1.1-.22l.4-.4a1 1 0 0 0 0-1.4l-1-1a1 1 0 0 1 0-1.4l.2-.2a1 1 0 0 1 1.4 0l1 1a1 1 0 0 0 1.4 0l.4-.4a1 1 0 0 0 .22-1.1l-.55-1.3a1 1 0 0 1 .54-1.3l.28-.1a1 1 0 0 1 1.3.54l.55 1.3a1 1 0 0 0 .94.6h.56a1 1 0 0 0 .93-.6l.56-1.3a1 1 0 0 1 1.3-.54l.28.1a1 1 0 0 1 .54 1.3l-.55 1.3a1 1 0 0 0 .22 1.1z" />
-        <circle cx="12" cy="12" r="2.5" />
-      </svg>
-    ),
-  },
-];
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-5 w-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h10M4 17h7" />
+    </svg>
+  );
+}
 
-export default function CompanySidebar() {
+function Chevron({
+  open,
+  isMobile,
+  className = "text-zinc-500",
+}: {
+  open: boolean;
+  isMobile: boolean;
+  className?: string;
+}) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      className={`ml-auto h-4 w-4 shrink-0 ${className} transition-transform ${
+        isMobile ? (open ? "rotate-180" : "") : open ? "rotate-90" : "-rotate-90"
+      }`}
+      aria-hidden
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
+      </svg>
+  );
+}
+
+export default function CompanySidebar({
+  initialBrandColor = null,
+}: {
+  initialBrandColor?: string | null;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [company, setCompany] = useState<CompanySession | null>(null);
+  const [features, setFeatures] = useState<CompanyNavFeature[]>([]);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [, startTransition] = useTransition();
-  const [transactionsOpen, setTransactionsOpen] = useState(false);
-  const transactionsWrapRef = useRef<HTMLDivElement>(null);
-  const transactionsButtonRef = useRef<HTMLButtonElement>(null);
-  const transactionsPopoverStyle = useFlyoutPosition(transactionsOpen, transactionsButtonRef);
 
-  const [reportsOpen, setReportsOpen] = useState(false);
-  const reportsWrapRef = useRef<HTMLDivElement>(null);
-  const reportsButtonRef = useRef<HTMLButtonElement>(null);
-  const reportsPopoverStyle = useFlyoutPosition(reportsOpen, reportsButtonRef);
-  const [reportSubMenuState, setReportSubMenuState] = useState<{
-    itemTab: string;
+  const [openFeatureId, setOpenFeatureId] = useState<string | null>(null);
+  const openFeatureWrapRef = useRef<HTMLDivElement>(null);
+  const openFeatureButtonRef = useRef<HTMLButtonElement>(null);
+  const openFeaturePopoverStyle = useFlyoutPosition(Boolean(openFeatureId), openFeatureButtonRef);
+  const [nestedMenuState, setNestedMenuState] = useState<{
+    key: string;
     style: CSSProperties;
+    modules: CompanyNavModule[];
   } | null>(null);
-  const reportSubMenuRef = useRef<HTMLDivElement>(null);
+  const nestedMenuRef = useRef<HTMLDivElement>(null);
 
-  const [mastersOpen, setMastersOpen] = useState(false);
-  const mastersWrapRef = useRef<HTMLDivElement>(null);
-  const mastersButtonRef = useRef<HTMLButtonElement>(null);
-  const mastersPopoverStyle = useFlyoutPosition(mastersOpen, mastersButtonRef);
-  const mastersPopoverRef = useRef<HTMLDivElement>(null);
-  const [masterSubMenuState, setMasterSubMenuState] = useState<{
-    groupTab: string;
-    style: CSSProperties;
-  } | null>(null);
-  const masterSubMenuRef = useRef<HTMLDivElement>(null);
-  const [masterSubSubMenuState, setMasterSubSubMenuState] = useState<{
-    parentTab: string;
-    style: CSSProperties;
-  } | null>(null);
-  const masterSubSubMenuRef = useRef<HTMLDivElement>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -147,24 +167,6 @@ export default function CompanySidebar() {
     media.addEventListener("change", sync);
     return () => media.removeEventListener("change", sync);
   }, []);
-
-  const openTransactionsMenu = () => {
-    setMastersOpen(false);
-    setReportsOpen(false);
-    setTransactionsOpen((v) => !v);
-  };
-
-  const openReportsMenu = () => {
-    setMastersOpen(false);
-    setTransactionsOpen(false);
-    setReportsOpen((v) => !v);
-  };
-
-  const openMastersMenu = () => {
-    setTransactionsOpen(false);
-    setReportsOpen(false);
-    setMastersOpen((v) => !v);
-  };
 
   useEffect(() => {
     let cancelled = false;
@@ -184,36 +186,63 @@ export default function CompanySidebar() {
       }
     }
 
-    loadSession();
+    void loadSession();
     return () => {
       cancelled = true;
     };
   }, [pathname]);
 
   useEffect(() => {
-    if (!transactionsOpen && !reportsOpen && !mastersOpen) return;
+    let cancelled = false;
+
+    async function loadFeatures() {
+      try {
+        const response = await fetch("/api/company/app-features");
+        const data = (await response.json()) as CompanyNavFeature[] | { error?: string };
+        if (cancelled) return;
+        if (!response.ok || !Array.isArray(data)) {
+          setFeatures([]);
+          return;
+        }
+        setFeatures(
+          data.map((feature) => ({
+            id: feature.id,
+            name: feature.name,
+            route: feature.route,
+            type: feature.type,
+            modules: feature.modules ?? [],
+          })),
+        );
+      } catch {
+        if (!cancelled) setFeatures([]);
+      }
+    }
+
+    void loadFeatures();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!openFeatureId) return;
 
     function onDocMouseDown(e: MouseEvent) {
       const target = e.target as Node;
-      const tx = transactionsWrapRef.current;
-      const rp = reportsWrapRef.current;
-      const ms = mastersWrapRef.current;
-      if (transactionsOpen && tx && !tx.contains(target)) {
-        setTransactionsOpen(false);
-      }
-      if (reportsOpen && rp && !rp.contains(target)) {
-        setReportsOpen(false);
-      }
-      if (mastersOpen && ms && !ms.contains(target)) {
-        setMastersOpen(false);
+      const wrap = openFeatureWrapRef.current;
+      const nested = nestedMenuRef.current;
+      const insideWrap = wrap?.contains(target);
+      const insideNested = nested?.contains(target);
+      if (!insideWrap && !insideNested) {
+        setOpenFeatureId(null);
+        setNestedMenuState(null);
       }
     }
 
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
-        setTransactionsOpen(false);
-        setReportsOpen(false);
-        setMastersOpen(false);
+        setOpenFeatureId(null);
+        setNestedMenuState(null);
         setMobileOpen(false);
       }
     }
@@ -224,38 +253,78 @@ export default function CompanySidebar() {
       document.removeEventListener("mousedown", onDocMouseDown);
       document.removeEventListener("keydown", onKey);
     };
-  }, [transactionsOpen, reportsOpen, mastersOpen]);
+  }, [openFeatureId]);
 
   const searchKey = searchParams.toString();
 
   useEffect(() => {
-    setTransactionsOpen(false);
-    setReportsOpen(false);
-    setMastersOpen(false);
+    setOpenFeatureId(null);
+    setNestedMenuState(null);
     setMobileOpen(false);
   }, [pathname, searchKey]);
 
+  useEffect(() => {
+    if (!openFeatureId) setNestedMenuState(null);
+  }, [openFeatureId]);
+
+  const brandColor = normalizeCompanyBrandColor(company?.brandColor ?? initialBrandColor);
+  const lightText = brandColorPrefersLightText(brandColor);
+  const sidebarStyle: CSSProperties = {
+    backgroundColor: brandColor,
+    backgroundImage: `radial-gradient(120% 60% at 0% 0%, rgba(255,255,255,0.18), transparent 60%), linear-gradient(180deg, ${brandColor} 0%, ${darkenBrandColor(brandColor, 0.28)} 100%)`,
+  };
+  const mobileBarStyle: CSSProperties = {
+    backgroundColor: brandColor,
+    backgroundImage: `linear-gradient(90deg, ${brandColor} 0%, ${darkenBrandColor(brandColor, 0.2)} 100%)`,
+  };
+  const flyoutStyle: CSSProperties = isMobile
+    ? { backgroundColor: darkenBrandColor(brandColor, 0.18) }
+    : {
+        backgroundColor: brandColor,
+        backgroundImage: `linear-gradient(160deg, ${brandColor} 0%, ${darkenBrandColor(brandColor, 0.22)} 100%)`,
+      };
+  const theme = lightText
+    ? {
+        title: "text-white",
+        subtitle: "text-white/70",
+        section: "text-white/60",
+        border: "border-white/15",
+        item: "text-white/85 hover:bg-white/15 hover:text-white",
+        icon: "text-white/80 group-hover:text-white",
+        chevron: "text-white/70",
+        hover: "hover:bg-white/15",
+        logoFallback: "bg-white/20 text-white ring-1 ring-white/30",
+        avatarFallback: "bg-white/20 text-white ring-1 ring-white/30",
+        signOut: "text-white/85 hover:bg-white/15 hover:text-white",
+        signOutIcon: "text-white/80",
+        menuItem: "text-white/90 hover:bg-white/15 hover:text-white",
+        menuItemActive: "bg-white/20 font-semibold text-white",
+        menuChevron: "text-white/70",
+      }
+    : {
+        title: "text-zinc-900",
+        subtitle: "text-zinc-700",
+        section: "text-zinc-700",
+        border: "border-black/10",
+        item: "text-zinc-800 hover:bg-white/60 hover:text-zinc-950",
+        icon: "text-zinc-700 group-hover:text-zinc-900",
+        chevron: "text-zinc-600",
+        hover: "hover:bg-white/60",
+        logoFallback: "bg-[#1f2937] text-white",
+        avatarFallback: "bg-white/70 text-zinc-800 ring-1 ring-black/10",
+        signOut: "text-zinc-800 hover:bg-white/60 hover:text-zinc-950",
+        signOutIcon: "text-rose-700",
+        menuItem: "text-zinc-800 hover:bg-white/50 hover:text-zinc-950",
+        menuItemActive: "bg-white/70 font-semibold text-zinc-950",
+        menuChevron: "text-zinc-600",
+      };
+
   const menuFlyoutClass = isMobile
-    ? "relative mt-1 max-h-72 w-full overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1"
-    : "z-100 w-max min-w-52 max-w-[min(20rem,calc(100vw-5rem))] overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]";
+    ? `relative mt-1 max-h-72 w-full overflow-y-auto overflow-x-hidden rounded-xl border ${theme.border} py-1`
+    : `z-100 w-max min-w-52 max-w-[min(20rem,calc(100vw-5rem))] overflow-y-auto overflow-x-hidden rounded-xl border ${theme.border} py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]`;
   const nestedFlyoutClass = isMobile
-    ? "relative mt-1 max-h-64 w-full overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1"
-    : "z-110 w-max min-w-48 max-w-[min(18rem,calc(100vw-5rem))] overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]";
-  const leafFlyoutClass = isMobile
-    ? "relative mt-1 max-h-64 w-full overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1"
-    : "z-120 w-max min-w-44 max-w-[min(18rem,calc(100vw-5rem))] overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]";
-
-  useEffect(() => {
-    if (!mastersOpen) setMasterSubMenuState(null);
-  }, [mastersOpen]);
-
-  useEffect(() => {
-    if (!reportsOpen) setReportSubMenuState(null);
-  }, [reportsOpen]);
-
-  useEffect(() => {
-    setMasterSubSubMenuState(null);
-  }, [masterSubMenuState]);
+    ? `relative mt-1 max-h-64 w-full overflow-y-auto overflow-x-hidden rounded-xl border ${theme.border} py-1`
+    : `z-110 w-max overflow-y-auto overflow-x-hidden rounded-xl border ${theme.border} py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]`;
 
   const signOut = async () => {
     setIsSigningOut(true);
@@ -269,22 +338,112 @@ export default function CompanySidebar() {
     }
   };
 
+  const currentTab = searchParams.get("tab");
+
+  const renderModuleButtons = (
+    feature: CompanyNavFeature,
+    modules: CompanyNavModule[],
+    closeMenus: () => void,
+  ): ReactNode =>
+    modules.map((entry) => {
+      const hasChildren = entry.children.length > 0;
+      const entryTab = navModuleTab(feature.route, entry.label);
+      const isSubOpen = nestedMenuState?.key === `${feature.id}:${entry.label}`;
+      const isEntryActive =
+        pathname.startsWith(feature.route) &&
+        (hasChildren
+          ? entry.children.some(
+              (child) => navModuleTab(feature.route, child.label) === currentTab,
+            )
+          : (currentTab ?? "") === entryTab);
+
+      return (
+        <button
+          key={`${feature.id}-${entry.label}`}
+          type="button"
+          role="menuitem"
+          onClick={(e) => {
+            if (hasChildren) {
+              if (isSubOpen) {
+                setNestedMenuState(null);
+                return;
+              }
+              if (isMobile) {
+                setNestedMenuState({
+                  key: `${feature.id}:${entry.label}`,
+                  style: {},
+                  modules: entry.children,
+                });
+                return;
+              }
+              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              const gap = 4;
+              const estimatedWidth = 240;
+              let left = rect.right + gap;
+              if (left + estimatedWidth > window.innerWidth - gap) {
+                left = Math.max(gap, rect.left - estimatedWidth - gap);
+              }
+              setNestedMenuState({
+                key: `${feature.id}:${entry.label}`,
+                style: {
+                  position: "fixed",
+                  top: Math.max(8, rect.top),
+                  left,
+                },
+                modules: entry.children,
+              });
+              return;
+            }
+
+            closeMenus();
+            startTransition(() => {
+              router.push(navModuleHref(feature.route, entry.label));
+            });
+          }}
+          className={`flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+            isEntryActive || isSubOpen ? theme.menuItemActive : theme.menuItem
+          }`}
+        >
+          <span className="flex-1">{entry.label}</span>
+          {hasChildren ? (
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              className={`h-3 w-3 shrink-0 ${theme.menuChevron} transition-transform ${isSubOpen ? "rotate-90" : ""}`}
+              aria-hidden
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 6l6 6-6 6" />
+            </svg>
+          ) : null}
+        </button>
+      );
+    });
+
+  const profileActive = pathname.startsWith("/company/profile");
+  const activeItemClass =
+    "bg-white text-zinc-900 shadow-[0_12px_26px_-18px_rgba(15,23,42,0.7)] ring-1 ring-black/5";
+
   return (
     <>
-      <div className="fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-3 border-b border-[#dfe4ef] bg-[#f3f5fa] px-3 md:hidden">
+      <div
+        className={`fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-3 border-b ${theme.border} px-3 md:hidden`}
+        style={mobileBarStyle}
+      >
         <button
           type="button"
           aria-label="Open menu"
           onClick={() => setMobileOpen(true)}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-zinc-800 hover:bg-white"
+          className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${theme.title} ${theme.hover}`}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-5 w-5">
             <path strokeLinecap="round" d="M4 7h16M4 12h16M4 17h16" />
           </svg>
         </button>
         <div className="min-w-0">
-          <p className="truncate text-sm font-bold text-zinc-900">{company?.name ?? "Your lab"}</p>
-          <p className="truncate font-mono text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+          <p className={`truncate text-sm font-bold ${theme.title}`}>{company?.name ?? "Your lab"}</p>
+          <p className={`truncate font-mono text-[10px] font-semibold uppercase tracking-wider ${theme.subtitle}`}>
             {company?.code ?? "Company portal"}
           </p>
         </div>
@@ -300,27 +459,30 @@ export default function CompanySidebar() {
       ) : null}
 
     <aside
-      className={`fixed inset-y-0 left-0 z-50 flex h-full w-72 max-w-[85vw] flex-col border-r border-[#dfe4ef] bg-[#f3f5fa] shadow-[0_14px_38px_-28px_rgba(15,23,42,0.45)] transition-transform duration-200 md:static md:z-auto md:w-64 md:max-w-none md:translate-x-0 md:pointer-events-auto ${
+      className={`fixed inset-y-0 left-0 z-50 flex h-full w-72 max-w-[85vw] flex-col border-r ${theme.border} shadow-[0_14px_38px_-28px_rgba(15,23,42,0.45)] transition-[transform,background-color] duration-200 md:static md:z-auto md:w-64 md:max-w-none md:translate-x-0 md:pointer-events-auto ${
         mobileOpen ? "translate-x-0" : "pointer-events-none -translate-x-full"
       }`}
+      style={sidebarStyle}
     >
-      <div className="flex items-center gap-3 border-b border-[#e7ebf4] px-5 py-5">
+      <div className={`flex items-center gap-3 border-b ${theme.border} px-5 py-5`}>
         {company?.logoUrl ? (
           <img
             src={company.logoUrl}
             alt=""
-            className="h-9 w-9 shrink-0 rounded-xl object-cover shadow-[0_10px_22px_-14px_rgba(15,23,42,0.65)] ring-1 ring-[#dfe4ef]"
+            className="h-9 w-9 shrink-0 rounded-xl bg-white object-cover shadow-[0_10px_22px_-14px_rgba(15,23,42,0.65)] ring-1 ring-white/40"
           />
         ) : (
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#1f2937] text-sm font-bold text-white shadow-[0_10px_22px_-14px_rgba(15,23,42,0.65)]">
+          <div
+            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold shadow-[0_10px_22px_-14px_rgba(15,23,42,0.65)] ${theme.logoFallback}`}
+          >
             {company?.initials ?? "—"}
           </div>
         )}
         <div className="min-w-0">
-          <p className="text-sm font-bold text-zinc-900 leading-tight truncate">
+            <p className={`truncate text-sm font-bold leading-tight ${theme.title}`}>
             {company?.name ?? "Your lab"}
           </p>
-          <p className="text-[10px] font-semibold uppercase tracking-wider leading-tight text-zinc-600 truncate font-mono">
+            <p className={`truncate font-mono text-[10px] font-semibold uppercase tracking-wider leading-tight ${theme.subtitle}`}>
             {company?.code ?? "Company portal"}
           </p>
         </div>
@@ -328,7 +490,7 @@ export default function CompanySidebar() {
           type="button"
           aria-label="Close menu"
           onClick={() => setMobileOpen(false)}
-          className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 hover:bg-white md:hidden"
+          className={`ml-auto inline-flex h-9 w-9 items-center justify-center rounded-lg ${theme.subtitle} ${theme.hover} md:hidden`}
         >
           <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5">
             <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
@@ -336,530 +498,108 @@ export default function CompanySidebar() {
         </button>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
-        <p className="px-3 mb-2 text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">
+        <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-4">
+          <p className={`mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest ${theme.section}`}>
           Workspace
         </p>
-        {navItems.map((item) => {
+          {features.map((feature, index) => {
+            const colors = navFeatureColors(index);
           const isActive =
-            item.href === "/company"
+              feature.route === "/company"
               ? pathname === "/company"
-              : pathname.startsWith(item.href);
+                : pathname.startsWith(feature.route);
+            const hasSubmenu = feature.type === "Menu" && feature.modules.length > 0;
+            const isOpen = openFeatureId === feature.id;
 
-          if (item.label === "Masters" && item.hasSubmenu) {
-            const mastersActive = pathname.startsWith("/company/masters");
-            const currentMasterTab = searchParams.get("tab");
+            if (hasSubmenu) {
             return (
-              <div key={item.href} className="relative" ref={mastersWrapRef}>
-                <button
-                  ref={mastersButtonRef}
-                  type="button"
-                  aria-haspopup="menu"
-                  aria-expanded={mastersOpen}
-                  onClick={openMastersMenu}
-                  className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all duration-150 ${
-                    mastersActive || mastersOpen
-                      ? "bg-white text-zinc-900 shadow-[0_12px_26px_-18px_rgba(15,23,42,0.7)] ring-1 ring-[#dfe4ef]"
-                      : "text-zinc-700 hover:bg-white/80 hover:text-zinc-900"
-                  }`}
+                <div
+                  key={feature.id}
+                  className="relative"
+                  ref={isOpen ? openFeatureWrapRef : undefined}
                 >
-                  <span
-                    className={`shrink-0 transition-colors ${
-                      mastersActive || mastersOpen
-                        ? item.iconActive
-                        : `${item.iconColor} group-hover:opacity-100 opacity-90`
-                    }`}
-                  >
-                    {item.icon}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
-                  {mastersActive ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" /> : null}
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    className={`ml-auto h-4 w-4 shrink-0 text-zinc-500 transition-transform ${
-                      isMobile
-                        ? mastersOpen
-                          ? "rotate-180"
-                          : ""
-                        : mastersOpen
-                          ? "rotate-90"
-                          : "-rotate-90"
-                    }`}
-                    aria-hidden
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
-                  </svg>
-                </button>
-
-                {mastersOpen && (isMobile || mastersPopoverStyle) ? (
-                  <div
-                    ref={mastersPopoverRef}
-                    role="menu"
-                    aria-label="Master categories"
-                    style={isMobile ? undefined : mastersPopoverStyle}
-                    className={menuFlyoutClass}
-                  >
-                    {COMPANY_MASTERS_MENU.map((group) => {
-                      const isGroupActive =
-                        mastersActive && group.children.some((c) => c.tab === currentMasterTab);
-                      const isSubOpen = masterSubMenuState?.groupTab === group.tab;
-                      return (
-                        <div key={group.tab}>
                           <button
-                            type="button"
-                            onClick={(e) => {
-                              if (isSubOpen) {
-                                setMasterSubMenuState(null);
-                                return;
-                              }
-                              if (isMobile) {
-                                setMasterSubMenuState({ groupTab: group.tab, style: {} });
-                                return;
-                              }
-                              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                              const gap = 4;
-                              const estimatedWidth = 220;
-                              let left = rect.right + gap;
-                              if (left + estimatedWidth > window.innerWidth - gap) {
-                                left = Math.max(gap, rect.left - estimatedWidth - gap);
-                              }
-                              setMasterSubMenuState({
-                                groupTab: group.tab,
-                                style: { position: "fixed", top: Math.max(8, rect.top), left },
-                              });
-                            }}
-                            className={`flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-xs font-medium transition-colors hover:bg-emerald-50 hover:text-zinc-950 ${
-                              isGroupActive || isSubOpen
-                                ? "bg-emerald-50 text-emerald-950 font-semibold"
-                                : "text-zinc-800"
-                            }`}
-                          >
-                            <span className="flex-1">{group.label}</span>
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                              className={`h-3 w-3 shrink-0 text-zinc-400 transition-transform ${isSubOpen ? "rotate-90" : ""}`}
-                              aria-hidden
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 6l6 6-6 6" />
-                            </svg>
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : null}
-
-                {mastersOpen && masterSubMenuState ? (
-                  <div
-                    ref={masterSubMenuRef}
-                    role="menu"
-                    aria-label="Master sub-items"
-                    style={isMobile ? undefined : masterSubMenuState.style}
-                    className={nestedFlyoutClass}
-                  >
-                    {COMPANY_MASTERS_MENU.find(
-                      (m) => m.tab === masterSubMenuState.groupTab,
-                    )?.children.map((child) => {
-                      type WithKids = { children: readonly { tab: string }[] };
-                      const hasGrandchildren = "children" in child;
-                      const grandchildren = hasGrandchildren
-                        ? (child as unknown as WithKids).children
-                        : [];
-                      const isSubSubOpen = masterSubSubMenuState?.parentTab === child.tab;
-                      const isChildActive =
-                        mastersActive &&
-                        (hasGrandchildren
-                          ? grandchildren.some((gc) => gc.tab === currentMasterTab)
-                          : child.tab === currentMasterTab);
-                      return (
-                        <button
-                          key={child.tab}
-                          type="button"
-                          role="menuitem"
-                          onClick={(e) => {
-                            if (hasGrandchildren) {
-                              if (isSubSubOpen) {
-                                setMasterSubSubMenuState(null);
-                                return;
-                              }
-                              if (isMobile) {
-                                setMasterSubSubMenuState({ parentTab: child.tab, style: {} });
-                                return;
-                              }
-                              const rect = (
-                                e.currentTarget as HTMLElement
-                              ).getBoundingClientRect();
-                              const gap = 4;
-                              const estimatedWidth = 210;
-                              let left = rect.right + gap;
-                              if (left + estimatedWidth > window.innerWidth - gap) {
-                                left = Math.max(gap, rect.left - estimatedWidth - gap);
-                              }
-                              setMasterSubSubMenuState({
-                                parentTab: child.tab,
-                                style: {
-                                  position: "fixed",
-                                  top: Math.max(8, rect.top),
-                                  left,
-                                },
-                              });
-                            } else {
-                              setMastersOpen(false);
-                              setMasterSubMenuState(null);
-                              startTransition(() => {
-                                router.push(`/company/masters?tab=${child.tab}`);
-                              });
-                            }
-                          }}
-                          className={`flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-xs font-medium transition-colors hover:bg-emerald-50 hover:text-zinc-950 ${
-                            isChildActive || isSubSubOpen
-                              ? "bg-emerald-50 text-emerald-950 font-semibold"
-                              : "text-zinc-800"
-                          }`}
-                        >
-                          <span className="flex-1">{child.label}</span>
-                          {hasGrandchildren && (
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                              className={`h-3 w-3 shrink-0 text-zinc-400 transition-transform ${isSubSubOpen ? "rotate-90" : ""}`}
-                              aria-hidden
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M9 6l6 6-6 6"
-                              />
-                            </svg>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : null}
-
-                {mastersOpen && masterSubMenuState && masterSubSubMenuState ? (
-                  <div
-                    ref={masterSubSubMenuRef}
-                    role="menu"
-                    aria-label="Master leaf items"
-                    style={isMobile ? undefined : masterSubSubMenuState.style}
-                    className={leafFlyoutClass}
-                  >
-                    {(() => {
-                      const group = COMPANY_MASTERS_MENU.find(
-                        (m) => m.tab === masterSubMenuState.groupTab,
-                      );
-                      const parent = group?.children.find(
-                        (c) => c.tab === masterSubSubMenuState.parentTab,
-                      );
-                      const leaves =
-                        parent && "children" in parent
-                          ? (
-                              parent as unknown as {
-                                children: readonly { label: string; tab: string }[];
-                              }
-                            ).children
-                          : [];
-                      return leaves.map((leaf) => (
-                        <button
-                          key={leaf.tab}
-                          type="button"
-                          role="menuitem"
-                          onClick={() => {
-                            setMastersOpen(false);
-                            setMasterSubMenuState(null);
-                            setMasterSubSubMenuState(null);
-                            startTransition(() => {
-                              router.push(`/company/masters?tab=${leaf.tab}`);
-                            });
-                          }}
-                          className={`flex w-full px-3 py-2.5 text-left text-xs font-medium transition-colors hover:bg-emerald-50 hover:text-zinc-950 ${
-                            mastersActive && currentMasterTab === leaf.tab
-                              ? "bg-emerald-50 text-emerald-950 font-semibold"
-                              : "text-zinc-800"
-                          }`}
-                        >
-                          {leaf.label}
-                        </button>
-                      ));
-                    })()}
-                  </div>
-                ) : null}
-              </div>
-            );
-          }
-
-          if (item.label === "Transactions" && item.hasSubmenu) {
-            const txActive = pathname.startsWith("/company/transactions");
-            const currentTab = searchParams.get("tab");
-            return (
-              <div key={item.href} className="relative" ref={transactionsWrapRef}>
-                <button
-                  ref={transactionsButtonRef}
+                    ref={isOpen ? openFeatureButtonRef : undefined}
                   type="button"
                   aria-haspopup="menu"
-                  aria-expanded={transactionsOpen}
-                  onClick={openTransactionsMenu}
+                    aria-expanded={isOpen}
+                    onClick={() => {
+                      setNestedMenuState(null);
+                      setOpenFeatureId((current) => (current === feature.id ? null : feature.id));
+                    }}
                   className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all duration-150 ${
-                    txActive || transactionsOpen
-                      ? "bg-white text-zinc-900 shadow-[0_12px_26px_-18px_rgba(15,23,42,0.7)] ring-1 ring-[#dfe4ef]"
-                      : "text-zinc-700 hover:bg-white/80 hover:text-zinc-900"
+                      isActive || isOpen ? activeItemClass : theme.item
                   }`}
                 >
                   <span
                     className={`shrink-0 transition-colors ${
-                      txActive || transactionsOpen
-                        ? item.iconActive
-                        : `${item.iconColor} group-hover:opacity-100 opacity-90`
-                    }`}
-                  >
-                    {item.icon}
+                        isActive || isOpen ? colors.iconActive : theme.icon
+                      }`}
+                    >
+                      <FeatureIcon name={feature.name} />
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
-                  {txActive ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" /> : null}
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    className={`ml-auto h-4 w-4 shrink-0 text-zinc-500 transition-transform ${
-                      isMobile
-                        ? transactionsOpen
-                          ? "rotate-180"
-                          : ""
-                        : transactionsOpen
-                          ? "rotate-90"
-                          : "-rotate-90"
-                    }`}
-                    aria-hidden
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
-                  </svg>
+                    <span className="min-w-0 flex-1 truncate text-left">{feature.name}</span>
+                    {isActive ? (
+                      <span
+                        className="h-1.5 w-1.5 shrink-0 rounded-full"
+                        style={{ backgroundColor: brandColor }}
+                      />
+                    ) : null}
+                    <Chevron
+                      open={isOpen}
+                      isMobile={isMobile}
+                      className={isActive || isOpen ? "text-zinc-500" : theme.chevron}
+                    />
                 </button>
 
-                {transactionsOpen && (isMobile || transactionsPopoverStyle) ? (
+                  {isOpen && (isMobile || openFeaturePopoverStyle) ? (
                   <div
                     role="menu"
-                    aria-label="Transaction types"
-                    style={isMobile ? undefined : transactionsPopoverStyle}
+                      aria-label={`${feature.name} modules`}
+                      style={isMobile ? flyoutStyle : { ...openFeaturePopoverStyle, ...flyoutStyle }}
                     className={menuFlyoutClass}
                   >
-                    {COMPANY_TRANSACTION_MENU.map((entry) => (
-                      <button
-                        key={entry.tab}
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          setTransactionsOpen(false);
-                          startTransition(() => {
-                            router.push(`/company/transactions?tab=${entry.tab}`);
-                          });
-                        }}
-                        className={`flex w-full px-3 py-2.5 text-left text-xs font-medium transition-colors hover:bg-emerald-50 hover:text-zinc-950 ${
-                          txActive && (currentTab ?? "registration") === entry.tab
-                            ? "bg-emerald-50 text-emerald-950 font-semibold"
-                            : "text-zinc-800"
-                        }`}
-                      >
-                        {entry.label}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            );
-          }
-
-          if (item.label === "Reports" && item.hasSubmenu) {
-            const reportsActive = pathname.startsWith("/company/reports");
-            const currentReportTab = searchParams.get("tab");
-            return (
-              <div key={item.href} className="relative" ref={reportsWrapRef}>
-                <button
-                  ref={reportsButtonRef}
-                  type="button"
-                  aria-haspopup="menu"
-                  aria-expanded={reportsOpen}
-                  onClick={openReportsMenu}
-                  className={`group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-all duration-150 ${
-                    reportsActive || reportsOpen
-                      ? "bg-white text-zinc-900 shadow-[0_12px_26px_-18px_rgba(15,23,42,0.7)] ring-1 ring-[#dfe4ef]"
-                      : "text-zinc-700 hover:bg-white/80 hover:text-zinc-900"
-                  }`}
-                >
-                  <span
-                    className={`shrink-0 transition-colors ${
-                      reportsActive || reportsOpen
-                        ? item.iconActive
-                        : `${item.iconColor} group-hover:opacity-100 opacity-90`
-                    }`}
-                  >
-                    {item.icon}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
-                  {reportsActive ? <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" /> : null}
-                  <svg
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                    className={`ml-auto h-4 w-4 shrink-0 text-zinc-500 transition-transform ${
-                      isMobile
-                        ? reportsOpen
-                          ? "rotate-180"
-                          : ""
-                        : reportsOpen
-                          ? "rotate-90"
-                          : "-rotate-90"
-                    }`}
-                    aria-hidden
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 9l6 6 6-6" />
-                  </svg>
-                </button>
-
-                {reportsOpen && (isMobile || reportsPopoverStyle) ? (
-                  <div
-                    role="menu"
-                    aria-label="Report categories"
-                    style={isMobile ? undefined : reportsPopoverStyle}
-                    className={menuFlyoutClass}
-                  >
-                    {COMPANY_REPORTS_MENU.map((entry) => {
-                      type WithKids = { children: readonly { tab: string }[] };
-                      const hasChildren = "children" in entry;
-                      const children = hasChildren
-                        ? (entry as unknown as WithKids).children
-                        : [];
-                      const isSubOpen = reportSubMenuState?.itemTab === entry.tab;
-                      const isEntryActive =
-                        reportsActive &&
-                        (hasChildren
-                          ? children.some((c) => c.tab === currentReportTab)
-                          : entry.tab === currentReportTab);
-                      return (
-                        <button
-                          key={entry.tab}
-                          type="button"
-                          role="menuitem"
-                          onClick={(e) => {
-                            if (hasChildren) {
-                              if (isSubOpen) {
-                                setReportSubMenuState(null);
-                                return;
-                              }
-                              if (isMobile) {
-                                setReportSubMenuState({ itemTab: entry.tab, style: {} });
-                                return;
-                              }
-                              const rect = (
-                                e.currentTarget as HTMLElement
-                              ).getBoundingClientRect();
-                              const gap = 4;
-                              const estimatedWidth = 240;
-                              let left = rect.right + gap;
-                              if (left + estimatedWidth > window.innerWidth - gap) {
-                                left = Math.max(gap, rect.left - estimatedWidth - gap);
-                              }
-                              setReportSubMenuState({
-                                itemTab: entry.tab,
-                                style: {
-                                  position: "fixed",
-                                  top: Math.max(8, rect.top),
-                                  left,
-                                },
-                              });
-                            } else {
-                              setReportsOpen(false);
-                              startTransition(() => {
-                                router.push(`/company/reports?tab=${entry.tab}`);
-                              });
-                            }
-                          }}
-                          className={`flex w-full items-center gap-1.5 px-3 py-2.5 text-left text-xs font-medium transition-colors hover:bg-emerald-50 hover:text-zinc-950 ${
-                            isEntryActive || isSubOpen
-                              ? "bg-emerald-50 text-emerald-950 font-semibold"
-                              : "text-zinc-800"
-                          }`}
-                        >
-                          <span className="flex-1">{entry.label}</span>
-                          {hasChildren && (
-                            <svg
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                              className={`h-3 w-3 shrink-0 text-zinc-400 transition-transform ${isSubOpen ? "rotate-90" : ""}`}
-                              aria-hidden
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M9 6l6 6-6 6"
-                              />
-                            </svg>
-                          )}
-                        </button>
-                      );
+                      {renderModuleButtons(feature, feature.modules, () => {
+                        setOpenFeatureId(null);
+                        setNestedMenuState(null);
                     })}
                   </div>
                 ) : null}
 
-                {reportsOpen && reportSubMenuState ? (
+                  {isOpen && nestedMenuState?.key.startsWith(`${feature.id}:`) ? (
                   <div
-                    ref={reportSubMenuRef}
+                      ref={nestedMenuRef}
                     role="menu"
-                    aria-label="Report sub-items"
-                    style={isMobile ? undefined : reportSubMenuState.style}
-                    className={isMobile ? nestedFlyoutClass : "z-110 w-max overflow-y-auto overflow-x-hidden rounded-xl border border-[#dfe4ef] bg-white py-1 shadow-[0_16px_40px_-20px_rgba(15,23,42,0.55)]"}
-                  >
-                    {(() => {
-                      const parent = COMPANY_REPORTS_MENU.find(
-                        (m) => m.tab === reportSubMenuState.itemTab,
-                      );
-                      const leaves =
-                        parent && "children" in parent
-                          ? (
-                              parent as unknown as {
-                                children: readonly { label: string; tab: string }[];
-                              }
-                            ).children
-                          : [];
+                      aria-label={`${feature.name} nested modules`}
+                      style={isMobile ? flyoutStyle : { ...nestedMenuState.style, ...flyoutStyle }}
+                      className={nestedFlyoutClass}
+                    >
+                      <div className="grid grid-cols-1">
+                        {nestedMenuState.modules.map((leaf) => {
+                          const leafTab = navModuleTab(feature.route, leaf.label);
                       return (
-                        <div className={isMobile ? "grid grid-cols-1" : "grid grid-cols-2"}>
-                          {leaves.map((leaf) => (
                             <button
-                              key={leaf.tab}
+                              key={`${feature.id}-${leaf.label}`}
                               type="button"
                               role="menuitem"
                               onClick={() => {
-                                setReportsOpen(false);
-                                setReportSubMenuState(null);
+                                setOpenFeatureId(null);
+                                setNestedMenuState(null);
                                 startTransition(() => {
-                                  router.push(`/company/reports?tab=${leaf.tab}`);
+                                  router.push(navModuleHref(feature.route, leaf.label));
                                 });
                               }}
-                              className={`flex w-full px-3 py-2.5 text-left text-xs font-medium transition-colors hover:bg-emerald-50 hover:text-zinc-950 ${
-                                reportsActive && currentReportTab === leaf.tab
-                                  ? "bg-emerald-50 text-emerald-950 font-semibold"
-                                  : "text-zinc-800"
+                              className={`flex w-full px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                                isActive && currentTab === leafTab
+                                  ? theme.menuItemActive
+                                  : theme.menuItem
                               }`}
                             >
                               {leaf.label}
                             </button>
-                          ))}
+                          );
+                        })}
                         </div>
-                      );
-                    })()}
                   </div>
                 ) : null}
               </div>
@@ -868,50 +608,97 @@ export default function CompanySidebar() {
 
           return (
             <Link
-              key={item.href}
-              href={item.href}
+                key={feature.id}
+                href={feature.route}
               className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 ${
-                isActive
-                  ? "bg-white text-zinc-900 shadow-[0_12px_26px_-18px_rgba(15,23,42,0.7)] ring-1 ring-[#dfe4ef]"
-                  : "text-zinc-700 hover:bg-white/80 hover:text-zinc-900"
+                isActive ? activeItemClass : theme.item
               }`}
             >
               <span
                 className={`shrink-0 transition-colors ${
-                  isActive ? item.iconActive : `${item.iconColor} group-hover:opacity-100 opacity-90`
+                    isActive ? colors.iconActive : theme.icon
                 }`}
               >
-                {item.icon}
+                  <FeatureIcon name={feature.name} />
               </span>
-              {item.label}
-              {isActive ? <span className="ml-auto h-1.5 w-1.5 rounded-full bg-emerald-500" /> : null}
+                {feature.name}
+              {isActive ? (
+                <span
+                  className="ml-auto h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: brandColor }}
+                />
+              ) : null}
             </Link>
           );
         })}
       </nav>
 
-      <div className="border-t border-[#e7ebf4] px-3 py-4 space-y-1">
-        <div className="flex items-center gap-3 rounded-xl px-3 py-2.5">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-zinc-700 text-xs font-bold">
-            {company?.initials ?? "—"}
+        <div className={`space-y-1 border-t ${theme.border} px-3 py-4`}>
+          <Link
+            href="/company/profile"
+            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${
+              profileActive ? activeItemClass : theme.hover
+            }`}
+          >
+            {company?.userImageUrl ? (
+              <img
+                src={company.userImageUrl}
+                alt=""
+                className="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-white/40"
+              />
+            ) : (
+              <div
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                  profileActive ? "text-white" : theme.avatarFallback
+                }`}
+                style={profileActive ? { backgroundColor: brandColor } : undefined}
+              >
+            {company?.userInitials ?? company?.initials ?? "—"}
           </div>
+            )}
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-zinc-800 truncate">
-              {company?.name ?? "Your lab"}
+              <p className={`truncate text-sm font-semibold ${profileActive ? "text-zinc-900" : theme.title}`}>
+              {company?.userName ?? company?.name ?? "Your lab"}
             </p>
-            <p className="text-xs text-zinc-600 truncate font-mono">
-              {company?.code ?? "Not signed in"}
-            </p>
+            {company?.role ? (
+              <p
+                className={`truncate text-xs font-medium ${profileActive ? "" : theme.subtitle}`}
+                style={profileActive ? { color: brandColor } : undefined}
+              >
+                {company.role}
+              </p>
+            ) : (
+              <p className={`truncate font-mono text-xs ${profileActive ? "text-zinc-600" : theme.subtitle}`}>
+                {company?.code ?? "Not signed in"}
+              </p>
+            )}
           </div>
-        </div>
+            <span
+              className={`text-[10px] font-semibold uppercase tracking-wide ${
+                profileActive ? "text-zinc-500" : theme.section
+              }`}
+            >
+              Profile
+            </span>
+          </Link>
         <button
           type="button"
           onClick={signOut}
           disabled={isSigningOut}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-white hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
+          className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${theme.signOut}`}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5 shrink-0 text-rose-600">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8}
+              className={`h-5 w-5 shrink-0 ${theme.signOutIcon}`}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"
+              />
           </svg>
           {isSigningOut ? "Signing out…" : "Sign out"}
         </button>

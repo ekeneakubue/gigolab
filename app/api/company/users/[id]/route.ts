@@ -15,6 +15,11 @@ type RouteContext = {
   params: Promise<{ id: string }>;
 };
 
+const userInclude = {
+  companyRole: { select: { id: true, name: true, dashboardRoute: true } },
+  branch: { select: { id: true, name: true, code: true } },
+} satisfies Prisma.UserInclude;
+
 function toInitials(name: string) {
   const initials = name
     .trim()
@@ -25,14 +30,21 @@ function toInitials(name: string) {
   return initials || "NA";
 }
 
-function mapUser(user: Prisma.UserGetPayload<object>) {
+function mapUser(
+  user: Prisma.UserGetPayload<{ include: typeof userInclude }>,
+) {
   return {
     id: user.id,
     name: user.name,
     initials: user.initials,
     email: user.email,
     imageUrl: user.imageUrl,
-    role: toRoleLabel(user.role),
+    role: user.companyRole?.name ?? toRoleLabel(user.role),
+    companyRoleId: user.companyRoleId,
+    dashboardRoute: user.companyRole?.dashboardRoute ?? null,
+    branchId: user.branchId,
+    branchName: user.branch?.name ?? null,
+    branchCode: user.branch?.code ?? null,
     status: user.status,
     accessLabel: user.accessLabel,
     lastSeenAt: user.lastSeenAt,
@@ -53,6 +65,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       email?: string;
       password?: string;
       role?: string;
+      companyRoleId?: string | null;
+      branchId?: string | null;
       status?: AccountStatus;
       imageUrl?: string | null;
     };
@@ -76,7 +90,35 @@ export async function PATCH(request: Request, context: RouteContext) {
       return NextResponse.json({ error: "User not found." }, { status: 404 });
     }
 
-    // Keep the user's current role when it is not one the portal can assign
+    let companyRoleId =
+      body.companyRoleId === undefined
+        ? existing.companyRoleId
+        : body.companyRoleId?.trim() || null;
+
+    if (companyRoleId) {
+      const companyRole = await prisma.companyRole.findFirst({
+        where: { id: companyRoleId, companyId: session.companyId },
+        select: { id: true },
+      });
+      if (!companyRole) {
+        return NextResponse.json({ error: "Choose a valid company role." }, { status: 400 });
+      }
+    }
+
+    let branchId =
+      body.branchId === undefined ? existing.branchId : body.branchId?.trim() || null;
+
+    if (branchId) {
+      const branch = await prisma.branch.findFirst({
+        where: { id: branchId, companyId: session.companyId },
+        select: { id: true },
+      });
+      if (!branch) {
+        return NextResponse.json({ error: "Choose a valid branch." }, { status: 400 });
+      }
+    }
+
+    // Keep the user's current system role when it is not one the portal can assign
     // (e.g. Lab Owner) and the request did not change it.
     let role: UserRole = existing.role;
     if (body.role !== undefined && body.role !== toRoleLabel(existing.role)) {
@@ -85,6 +127,11 @@ export async function PATCH(request: Request, context: RouteContext) {
         return NextResponse.json({ error: "Choose a valid role." }, { status: 400 });
       }
       role = parsed;
+    } else if (companyRoleId && !COMPANY_ROLE_OPTIONS.includes(existing.role)) {
+      // Leave LabOwner (etc.) as-is when only companyRoleId changes.
+      role = existing.role;
+    } else if (companyRoleId && !body.role) {
+      role = existing.role;
     }
 
     const emailOwner = await prisma.user.findUnique({
@@ -102,10 +149,13 @@ export async function PATCH(request: Request, context: RouteContext) {
         initials: toInitials(name),
         email,
         role,
+        companyRoleId,
+        branchId,
         status: body.status ?? existing.status,
         ...(imageUrl !== undefined ? { imageUrl } : {}),
         ...(password ? { passwordHash: hashPassword(password) } : {}),
       },
+      include: userInclude,
     });
 
     if (imageUrl !== undefined) {

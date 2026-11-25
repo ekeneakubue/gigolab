@@ -9,7 +9,7 @@ type GetDemoButtonProps = {
 
 export default function GetDemoButton({
   className,
-  children = "Get a Demo",
+  children = "Apply for Demo",
 }: GetDemoButtonProps) {
   const { openDemoModal } = useDemoSignup();
 

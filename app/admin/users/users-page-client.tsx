@@ -75,24 +75,25 @@ function isApiUser(payload: ApiUser | { error?: string }): payload is ApiUser {
   return "id" in payload && typeof payload.id === "string";
 }
 
-const roleOptions = ["Admin", "Lab Owner", "Lab Technician", "Lab HR"] as const;
-
-const emptyForm: NewUserForm = {
-  image: null,
-  name: "",
-  companyId: "",
-  email: "",
-  password: "",
-  role: "Lab Technician",
-  status: "Active",
-};
+function emptyUserForm(defaultRole = "Lab Technician"): NewUserForm {
+  return {
+    image: null,
+    name: "",
+    companyId: "",
+    email: "",
+    password: "",
+    role: defaultRole,
+    status: "Active",
+  };
+}
 
 export default function UsersPageClient() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [form, setForm] = useState<NewUserForm>(emptyForm);
+  const [form, setForm] = useState<NewUserForm>(() => emptyUserForm());
   const [companies, setCompanies] = useState<CompanyOption[]>([]);
+  const [roleOptions, setRoleOptions] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -100,12 +101,16 @@ export default function UsersPageClient() {
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
+  const defaultRole = roleOptions.includes("Lab Technician")
+    ? "Lab Technician"
+    : (roleOptions[0] ?? "Lab Technician");
+
   const openAddUserModal = () => {
     setError("");
     setIsAddingUser(false);
     setShowPassword(false);
     setEditingUserId(null);
-    setForm(emptyForm);
+    setForm(emptyUserForm(defaultRole));
     setIsModalOpen(true);
     void loadCompanies();
   };
@@ -145,6 +150,30 @@ export default function UsersPageClient() {
       setCompanies([]);
     }
   };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRoles() {
+      try {
+        const response = await fetch("/api/users/roles");
+        const data = (await response.json()) as string[] | { error?: string };
+        if (cancelled) return;
+        if (!response.ok || !Array.isArray(data)) {
+          setRoleOptions([]);
+          return;
+        }
+        setRoleOptions(data);
+      } catch {
+        if (!cancelled) setRoleOptions([]);
+      }
+    }
+
+    void loadRoles();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const formatDate = (value: string) =>
     new Date(value).toLocaleDateString("en-US", {
@@ -244,7 +273,7 @@ export default function UsersPageClient() {
       setUsers((prev) =>
         editingUserId ? prev.map((user) => (user.id === editingUserId ? row : user)) : [row, ...prev]
       );
-      setForm(emptyForm);
+      setForm(emptyUserForm(defaultRole));
       setEditingUserId(null);
       setIsModalOpen(false);
     } finally {
@@ -674,8 +703,14 @@ export default function UsersPageClient() {
                     value={form.role}
                     onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
                     className={userInputClass}
+                    disabled={roleOptions.length === 0 && !form.role}
                   >
-                    {editingUserId && !(roleOptions as readonly string[]).includes(form.role) ? (
+                    {roleOptions.length === 0 ? (
+                      <option value={form.role || ""}>
+                        {form.role || "Loading roles…"}
+                      </option>
+                    ) : null}
+                    {editingUserId && form.role && !roleOptions.includes(form.role) ? (
                       <option value={form.role}>{form.role} (current)</option>
                     ) : null}
                     {roleOptions.map((role) => (

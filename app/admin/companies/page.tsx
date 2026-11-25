@@ -3,6 +3,10 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { CompanyFormFields } from "@/app/components/CompanyFormFields";
+import {
+  companyBrandColorLabel,
+  DEFAULT_COMPANY_BRAND_COLOR,
+} from "@/lib/company-brand-colors";
 import { generateCompanyCode } from "@/lib/company-code";
 
 // â”€â”€â”€ Data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -13,6 +17,7 @@ type CompanyRow = {
   name: string;
   initials: string;
   logoUrl: string | null;
+  brandColor: string;
   location: string;
   plan: string;
   users: number;
@@ -22,12 +27,15 @@ type CompanyRow = {
   contact: string;
   phone: string;
   lastActive: string;
+  featureIds: string[];
 };
 
-const statusMeta: Record<string, { badge: string; dot: string }> = {
-  Active:   { badge: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
-  Trial:    { badge: "bg-amber-100 text-amber-700",     dot: "bg-amber-500"   },
-  Inactive: { badge: "bg-zinc-100 text-zinc-500",       dot: "bg-zinc-400"    },
+type CatalogFeature = {
+  id: string;
+  name: string;
+  route: string;
+  type: string;
+  status: string;
 };
 
 const avatarColors = [
@@ -40,6 +48,7 @@ type NewCompanyForm = {
   logo: string | null;
   name: string;
   labCode: string;
+  brandColor: string;
   password: string;
   location: string;
   status: "Active" | "Trial" | "Inactive";
@@ -52,6 +61,7 @@ function emptyNewCompanyForm(): NewCompanyForm {
     logo: null,
     name: "",
     labCode: generateCompanyCode(),
+    brandColor: DEFAULT_COMPANY_BRAND_COLOR,
     password: "",
     location: "",
     status: "Active",
@@ -75,6 +85,8 @@ type ApiCompany = {
   userCount: number;
   sampleCount: number;
   logoUrl: string | null;
+  brandColor?: string | null;
+  featureIds?: string[];
 };
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
@@ -94,6 +106,7 @@ function mapApiCompanyToRow(company: ApiCompany): CompanyRow {
     name: company.name,
     initials: company.initials,
     logoUrl: company.logoUrl,
+    brandColor: company.brandColor || DEFAULT_COMPANY_BRAND_COLOR,
     location: company.location,
     plan: company.plan,
     users: company.userCount,
@@ -105,6 +118,7 @@ function mapApiCompanyToRow(company: ApiCompany): CompanyRow {
     lastActive: company.lastActiveAt
       ? dateFormatter.format(new Date(company.lastActiveAt))
       : "just now",
+    featureIds: Array.isArray(company.featureIds) ? company.featureIds : [],
   };
 }
 
@@ -129,34 +143,20 @@ export default function CompaniesPage() {
     logo: null,
     name: "",
     labCode: "",
+    brandColor: DEFAULT_COMPANY_BRAND_COLOR,
     password: "",
     location: "",
     status: "Active",
     contact: "",
     phone: "",
   });
+  const [catalogFeatures, setCatalogFeatures] = useState<CatalogFeature[]>([]);
+  const [editFeatureIds, setEditFeatureIds] = useState<string[]>([]);
+  const [isLoadingFeatures, setIsLoadingFeatures] = useState(false);
 
   const overviewStats = useMemo(
     () => [
       { label: "Total", value: companies.length, color: "text-zinc-900", bg: "bg-zinc-100" },
-      {
-        label: "Active",
-        value: companies.filter((c) => c.status === "Active").length,
-        color: "text-emerald-700",
-        bg: "bg-emerald-100",
-      },
-      {
-        label: "Trial",
-        value: companies.filter((c) => c.status === "Trial").length,
-        color: "text-amber-700",
-        bg: "bg-amber-100",
-      },
-      {
-        label: "Inactive",
-        value: companies.filter((c) => c.status === "Inactive").length,
-        color: "text-zinc-500",
-        bg: "bg-zinc-100",
-      },
     ],
     [companies]
   );
@@ -165,7 +165,7 @@ export default function CompaniesPage() {
     const q = search.trim().toLowerCase();
     if (!q) return companies;
     return companies.filter((c) =>
-      [c.name, c.code, c.location, c.contact, c.phone, c.status, c.plan]
+      [c.name, c.code, c.location, c.plan]
         .join(" ")
         .toLowerCase()
         .includes(q)
@@ -194,9 +194,40 @@ export default function CompaniesPage() {
   }, []);
 
   useEffect(() => {
+    async function loadCatalogFeatures() {
+      setIsLoadingFeatures(true);
+      try {
+        const response = await fetch("/api/admin/app-features", { cache: "no-store" });
+        if (!response.ok) {
+          setCatalogFeatures([]);
+          return;
+        }
+        const data = (await response.json()) as CatalogFeature[];
+        setCatalogFeatures(Array.isArray(data) ? data : []);
+      } catch {
+        setCatalogFeatures([]);
+      } finally {
+        setIsLoadingFeatures(false);
+      }
+    }
+
+    void loadCatalogFeatures();
+  }, []);
+
+  useEffect(() => {
     if (!isModalOpen) return;
     setForm((f) => ({ ...f, labCode: generateCompanyCode() }));
   }, [isModalOpen]);
+
+  const activeCatalogFeatures = useMemo(
+    () => catalogFeatures.filter((feature) => feature.status === "Active"),
+    [catalogFeatures],
+  );
+
+  const selectedEditFeatureIds = useMemo(
+    () => new Set(editFeatureIds),
+    [editFeatureIds],
+  );
 
   const openAddCompanyModal = () => {
     setError("");
@@ -224,8 +255,8 @@ export default function CompaniesPage() {
           name: form.name,
           code: form.labCode,
           location: form.location,
-          status: form.status,
           logoUrl: form.logo,
+          brandColor: form.brandColor,
         }),
       });
 
@@ -253,13 +284,36 @@ export default function CompaniesPage() {
       logo: company.logoUrl,
       name: company.name,
       labCode: company.code,
+      brandColor: company.brandColor || DEFAULT_COMPANY_BRAND_COLOR,
       password: "",
       location: company.location,
       status: company.status,
       contact: company.contact,
       phone: company.phone === "N/A" ? "" : company.phone,
     });
+    // Legacy companies with no assignments: pre-select all Active features.
+    setEditFeatureIds(
+      company.featureIds.length > 0
+        ? company.featureIds
+        : activeCatalogFeatures.map((feature) => feature.id),
+    );
     setIsEditModalOpen(true);
+  };
+
+  const toggleEditFeature = (featureId: string, checked: boolean) => {
+    setEditFeatureIds((prev) => {
+      if (checked) {
+        return prev.includes(featureId) ? prev : [...prev, featureId];
+      }
+      return prev.filter((id) => id !== featureId);
+    });
+  };
+
+  const toggleAllEditFeatures = () => {
+    const allActiveIds = activeCatalogFeatures.map((feature) => feature.id);
+    const allSelected =
+      allActiveIds.length > 0 && allActiveIds.every((id) => selectedEditFeatureIds.has(id));
+    setEditFeatureIds(allSelected ? [] : allActiveIds);
   };
 
   const submitEditCompany = async (e: FormEvent) => {
@@ -268,6 +322,10 @@ export default function CompaniesPage() {
     if (!editingCompanyId) return;
     if (!editForm.name.trim() || !editForm.location.trim()) {
       setEditError("Lab name and location are required.");
+      return;
+    }
+    if (editFeatureIds.length === 0) {
+      setEditError("Select at least one feature for this company.");
       return;
     }
 
@@ -279,8 +337,9 @@ export default function CompaniesPage() {
         body: JSON.stringify({
           name: editForm.name,
           location: editForm.location,
-          status: editForm.status,
           logoUrl: editForm.logo,
+          brandColor: editForm.brandColor,
+          featureIds: editFeatureIds,
         }),
       });
 
@@ -444,7 +503,6 @@ export default function CompaniesPage() {
             ) : (
               <ul className="divide-y divide-emerald-50/80">
                 {filteredCompanies.map((c, i) => {
-                  const status = statusMeta[c.status];
                   const avatar = avatarColors[i % avatarColors.length];
                   return (
                     <li key={c.id} className="px-4 py-4">
@@ -461,19 +519,20 @@ export default function CompaniesPage() {
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-zinc-800">{c.name}</p>
-                              <p className="text-[11px] text-zinc-400">{c.location}</p>
-                            </div>
-                            <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${status.badge}`}>
-                              <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
-                              {c.status}
-                            </span>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-zinc-800">{c.name}</p>
+                            <p className="text-[11px] text-zinc-400">{c.location}</p>
                           </div>
-                          <p className="mt-2 truncate text-[12px] text-zinc-600">{c.contact}</p>
                           <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-500">
-                            <span className="font-mono text-emerald-700">{c.code}</span>
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className="font-mono text-emerald-700">{c.code}</span>
+                              <span
+                                aria-hidden
+                                className="h-2.5 w-2.5 rounded-full ring-1 ring-black/10"
+                                style={{ backgroundColor: c.brandColor }}
+                                title={companyBrandColorLabel(c.brandColor)}
+                              />
+                            </span>
                             <span>{c.users} users</span>
                             <span>{c.samples.toLocaleString()} samples</span>
                           </div>
@@ -537,10 +596,8 @@ export default function CompaniesPage() {
                   <th className="px-5 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Company</th>
                   <th className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Lab code</th>
                   <th className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Location</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Status</th>
                   <th className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Users</th>
                   <th className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Samples</th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Contact</th>
                   <th className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Joined</th>
                   <th className="px-4 py-3 text-left text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Last active</th>
                   <th className="px-4 py-3 text-right text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Actions</th>
@@ -561,13 +618,8 @@ export default function CompaniesPage() {
                       </td>
                       <td className="px-4 py-3"><span className="block h-5 w-24 rounded bg-emerald-50" /></td>
                       <td className="px-4 py-3"><span className="block h-3 w-20 rounded bg-zinc-100" /></td>
-                      <td className="px-4 py-3"><span className="block h-5 w-14 rounded-full bg-zinc-100" /></td>
                       <td className="px-4 py-3"><span className="block h-3 w-6 rounded bg-zinc-100" /></td>
                       <td className="px-4 py-3"><span className="block h-3 w-10 rounded bg-zinc-100" /></td>
-                      <td className="px-4 py-3 min-w-[160px]">
-                        <span className="block h-3 w-28 rounded bg-zinc-100" />
-                        <span className="block h-2.5 w-20 rounded bg-zinc-100 mt-1.5" />
-                      </td>
                       <td className="px-4 py-3"><span className="block h-3 w-16 rounded bg-zinc-100" /></td>
                       <td className="px-4 py-3"><span className="block h-3 w-16 rounded bg-zinc-100" /></td>
                       <td className="px-4 py-3 text-right">
@@ -577,7 +629,7 @@ export default function CompaniesPage() {
                   ))
                 ) : filteredCompanies.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-5 py-12 text-center">
+                    <td colSpan={8} className="px-5 py-12 text-center">
                       <p className="text-sm font-medium text-zinc-600">No companies found</p>
                       <p className="text-xs text-zinc-400 mt-1">
                         {companies.length === 0 ? "Add your first lab to get started." : "Try a different search term."}
@@ -591,7 +643,6 @@ export default function CompaniesPage() {
                   </tr>
                 ) : (
                   filteredCompanies.map((c, i) => {
-                    const status = statusMeta[c.status];
                     const avatar = avatarColors[i % avatarColors.length];
                     return (
                       <tr key={c.id} className="hover:bg-emerald-50/40 transition-colors">
@@ -615,21 +666,25 @@ export default function CompaniesPage() {
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <code className="text-[11px] font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">{c.code}</code>
+                  <div className="space-y-1.5">
+                    <code className="text-[11px] font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                      {c.code}
+                    </code>
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        aria-hidden
+                        className="h-3 w-3 rounded-full ring-1 ring-black/10"
+                        style={{ backgroundColor: c.brandColor }}
+                      />
+                      <span className="text-[11px] font-medium text-zinc-500">
+                        {companyBrandColorLabel(c.brandColor)}
+                      </span>
+                    </div>
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-zinc-600 whitespace-nowrap">{c.location}</td>
-                <td className="px-4 py-3">
-                  <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${status.badge}`}>
-                    <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
-                    {c.status}
-                  </span>
-                </td>
                 <td className="px-4 py-3 text-zinc-700 tabular-nums">{c.users}</td>
                 <td className="px-4 py-3 text-zinc-700 tabular-nums">{c.samples.toLocaleString()}</td>
-                <td className="px-4 py-3 min-w-[160px]">
-                  <p className="text-zinc-600 truncate">{c.contact}</p>
-                  <p className="text-[11px] text-zinc-400 truncate">{c.phone}</p>
-                </td>
                 <td className="px-4 py-3 text-zinc-500 whitespace-nowrap">{c.joined}</td>
                 <td className="px-4 py-3 text-zinc-500 whitespace-nowrap">{c.lastActive}</td>
                 <td className="px-4 py-3 text-right">
@@ -711,6 +766,7 @@ export default function CompaniesPage() {
                 onImageError={setError}
                 infoLine="Lab code is auto-generated (Gigolab + 6 characters). Portal sign-in uses the users assigned to this company."
                 hidePassword
+                hideStatus
                 hideContactFields
               />
 
@@ -788,8 +844,86 @@ export default function CompaniesPage() {
                 onImageError={setEditError}
                 infoLine="Lab code cannot be changed. Portal sign-in uses the users assigned to this company."
                 hidePassword
+                hideStatus
                 hideContactFields
               />
+
+              <div>
+                <div className="flex items-center justify-between gap-3">
+                  <label className="text-sm font-bold text-zinc-950">Features</label>
+                  <button
+                    type="button"
+                    onClick={toggleAllEditFeatures}
+                    disabled={isLoadingFeatures || activeCatalogFeatures.length === 0}
+                    className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 disabled:opacity-50"
+                  >
+                    {activeCatalogFeatures.length > 0 &&
+                    activeCatalogFeatures.every((feature) =>
+                      selectedEditFeatureIds.has(feature.id),
+                    )
+                      ? "Clear all"
+                      : "Select all"}
+                  </button>
+                </div>
+                <p className="mt-1 text-xs text-zinc-600">
+                  Choose which portal features this company can use. Role permissions can further
+                  restrict access for users.
+                </p>
+
+                <div className="mt-2 max-h-64 space-y-2 overflow-y-auto rounded-xl border border-emerald-100 bg-emerald-50/30 p-3">
+                  {isLoadingFeatures ? (
+                    <p className="px-1 py-2 text-sm text-zinc-600">Loading features…</p>
+                  ) : activeCatalogFeatures.length === 0 ? (
+                    <p className="px-1 py-2 text-sm text-zinc-600">
+                      No active features yet. Add some under App Features first.
+                    </p>
+                  ) : (
+                    activeCatalogFeatures.map((feature) => {
+                      const checked = selectedEditFeatureIds.has(feature.id);
+                      return (
+                        <label
+                          key={feature.id}
+                          className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-2.5 transition-colors ${
+                            checked
+                              ? "border-emerald-200 bg-white shadow-sm"
+                              : "border-transparent bg-white/70"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => toggleEditFeature(feature.id, e.target.checked)}
+                            className="mt-1 h-4 w-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-200"
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="flex flex-wrap items-center gap-2">
+                              <span className="text-sm font-semibold text-zinc-900">
+                                {feature.name}
+                              </span>
+                              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-600">
+                                {feature.type}
+                              </span>
+                            </span>
+                            <span className="mt-0.5 block truncate font-mono text-[11px] text-zinc-500">
+                              {feature.route}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+
+                {editFeatureIds.length > 0 ? (
+                  <p className="mt-2 text-xs font-medium text-emerald-800">
+                    Selected ({editFeatureIds.length}):{" "}
+                    {activeCatalogFeatures
+                      .filter((feature) => selectedEditFeatureIds.has(feature.id))
+                      .map((feature) => feature.name)
+                      .join(", ")}
+                  </p>
+                ) : null}
+              </div>
 
               {editError ? <p className="text-sm font-semibold text-red-700">{editError}</p> : null}
 

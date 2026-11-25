@@ -11,6 +11,11 @@ import { parseUserRole, toRoleLabel } from "@/lib/user-role";
 /** Roles a company can assign to its own staff from the portal. */
 const COMPANY_ROLE_OPTIONS: UserRole[] = ["LabTechnician", "LabHR"];
 
+const userInclude = {
+  companyRole: { select: { id: true, name: true, dashboardRoute: true } },
+  branch: { select: { id: true, name: true, code: true } },
+} satisfies Prisma.UserInclude;
+
 function toInitials(name: string) {
   const initials = name
     .trim()
@@ -27,14 +32,21 @@ function parseCompanyRole(value: string | undefined): UserRole | null {
   return role && COMPANY_ROLE_OPTIONS.includes(role) ? role : null;
 }
 
-function mapUser(user: Prisma.UserGetPayload<object>) {
+function mapUser(
+  user: Prisma.UserGetPayload<{ include: typeof userInclude }>,
+) {
   return {
     id: user.id,
     name: user.name,
     initials: user.initials,
     email: user.email,
     imageUrl: user.imageUrl,
-    role: toRoleLabel(user.role),
+    role: user.companyRole?.name ?? toRoleLabel(user.role),
+    companyRoleId: user.companyRoleId,
+    dashboardRoute: user.companyRole?.dashboardRoute ?? null,
+    branchId: user.branchId,
+    branchName: user.branch?.name ?? null,
+    branchCode: user.branch?.code ?? null,
     status: user.status,
     accessLabel: user.accessLabel,
     lastSeenAt: user.lastSeenAt,
@@ -51,6 +63,7 @@ export async function GET() {
   try {
     const users = await prisma.user.findMany({
       where: { companyId: session.companyId },
+      include: userInclude,
       orderBy: { createdAt: "desc" },
     });
 
@@ -73,6 +86,8 @@ export async function POST(request: Request) {
       email?: string;
       password?: string;
       role?: string;
+      companyRoleId?: string | null;
+      branchId?: string | null;
       status?: AccountStatus;
       imageUrl?: string | null;
     };
@@ -81,8 +96,31 @@ export async function POST(request: Request) {
     const email = body.email?.trim().toLowerCase() ?? "";
     const password = body.password ?? "";
     const imageUrl = await persistImageReference(body.imageUrl?.trim() || null, "avatars");
-    const role = parseCompanyRole(body.role);
+    const companyRoleId = body.companyRoleId?.trim() || null;
+    const branchId = body.branchId?.trim() || null;
     const status = body.status ?? "Active";
+
+    let role = parseCompanyRole(body.role);
+    if (companyRoleId) {
+      const companyRole = await prisma.companyRole.findFirst({
+        where: { id: companyRoleId, companyId: session.companyId },
+        select: { id: true },
+      });
+      if (!companyRole) {
+        return NextResponse.json({ error: "Choose a valid company role." }, { status: 400 });
+      }
+      role = role ?? "LabTechnician";
+    }
+
+    if (branchId) {
+      const branch = await prisma.branch.findFirst({
+        where: { id: branchId, companyId: session.companyId },
+        select: { id: true },
+      });
+      if (!branch) {
+        return NextResponse.json({ error: "Choose a valid branch." }, { status: 400 });
+      }
+    }
 
     if (!role) {
       return NextResponse.json({ error: "Choose a valid role." }, { status: 400 });
@@ -108,6 +146,8 @@ export async function POST(request: Request) {
       const user = await tx.user.create({
         data: {
           companyId: session.companyId,
+          companyRoleId,
+          branchId,
           name,
           initials: toInitials(name),
           email,
@@ -117,6 +157,7 @@ export async function POST(request: Request) {
           passwordHash: hashPassword(password),
           imageUrl,
         },
+        include: userInclude,
       });
 
       await tx.company.update({

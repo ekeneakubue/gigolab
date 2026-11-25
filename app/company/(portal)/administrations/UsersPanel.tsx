@@ -1,0 +1,862 @@
+﻿"use client";
+
+import { FormEvent, useEffect, useMemo, useState } from "react";
+
+import { uploadImageFile } from "@/lib/upload-image";
+
+const userInputClass =
+  "mt-1.5 h-10 w-full rounded-xl border border-emerald-200 px-3 text-base font-medium text-zinc-900 placeholder:text-zinc-600 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100";
+
+type CompanyUser = {
+  id: string;
+  name: string;
+  initials: string;
+  email: string;
+  imageUrl: string | null;
+  role: string;
+  companyRoleId?: string | null;
+  dashboardRoute?: string | null;
+  branchId?: string | null;
+  branchName?: string | null;
+  branchCode?: string | null;
+  status: "Active" | "Trial" | "Inactive";
+  accessLabel: string;
+  lastSeenAt: string | null;
+  createdAt: string;
+};
+
+type CompanyRoleOption = {
+  id: string;
+  name: string;
+  dashboardRoute: string;
+};
+
+type CompanyBranchOption = {
+  id: string;
+  name: string;
+  code: string;
+  status: "Active" | "Trial" | "Inactive";
+  isMain: boolean;
+};
+
+const statusMeta: Record<string, { badge: string; dot: string }> = {
+  Active: { badge: "bg-emerald-100 text-emerald-700", dot: "bg-emerald-500" },
+  Trial: { badge: "bg-amber-100 text-amber-700", dot: "bg-amber-500" },
+  Inactive: { badge: "bg-zinc-200 text-zinc-600", dot: "bg-zinc-400" },
+};
+
+const avatarColors = ["bg-indigo-600", "bg-violet-600", "bg-sky-600", "bg-teal-600", "bg-blue-600"];
+
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
+
+type NewUserForm = {
+  image: string | null;
+  name: string;
+  email: string;
+  password: string;
+  branchId: string;
+  companyRoleId: string;
+  status: "Active" | "Trial" | "Inactive";
+};
+
+type CompanyAccountStatus = "Active" | "Trial" | "Inactive";
+
+function defaultNewUserStatus(companyStatus: CompanyAccountStatus | null): CompanyAccountStatus {
+  return companyStatus === "Trial" ? "Trial" : "Active";
+}
+
+function emptyUserForm(
+  companyStatus: CompanyAccountStatus | null,
+  defaultRoleId = "",
+  defaultBranchId = "",
+): NewUserForm {
+  return {
+    image: null,
+    name: "",
+    email: "",
+    password: "",
+    branchId: defaultBranchId,
+    companyRoleId: defaultRoleId,
+    status: defaultNewUserStatus(companyStatus),
+  };
+}
+
+function isCompanyUser(payload: CompanyUser | { error?: string }): payload is CompanyUser {
+  return "id" in payload && typeof payload.id === "string";
+}
+
+export default function CompanyUsersPanel() {
+  const [users, setUsers] = useState<CompanyUser[]>([]);
+  const [search, setSearch] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [companyStatus, setCompanyStatus] = useState<CompanyAccountStatus | null>(null);
+  const [form, setForm] = useState<NewUserForm>(() => emptyUserForm(null));
+  const [formError, setFormError] = useState("");
+  const [isAddingUser, setIsAddingUser] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [roleOptions, setRoleOptions] = useState<CompanyRoleOption[]>([]);
+  const [isLoadingRoles, setIsLoadingRoles] = useState(true);
+  const [rolesError, setRolesError] = useState("");
+  const [branchOptions, setBranchOptions] = useState<CompanyBranchOption[]>([]);
+  const [isLoadingBranches, setIsLoadingBranches] = useState(true);
+  const [branchesError, setBranchesError] = useState("");
+
+  const loadRoles = async () => {
+    setIsLoadingRoles(true);
+    setRolesError("");
+    try {
+      const response = await fetch("/api/company/roles", { cache: "no-store" });
+      const data = (await response.json()) as CompanyRoleOption[] | { error?: string };
+      if (!response.ok || !Array.isArray(data)) {
+        setRoleOptions([]);
+        setRolesError(
+          !Array.isArray(data) && data.error ? data.error : "Could not load roles.",
+        );
+        return [];
+      }
+      const options = data.map((role) => ({
+        id: role.id,
+        name: role.name,
+        dashboardRoute: role.dashboardRoute,
+      }));
+      setRoleOptions(options);
+      return options;
+    } catch {
+      setRoleOptions([]);
+      setRolesError("Could not load roles. Please try again.");
+      return [];
+    } finally {
+      setIsLoadingRoles(false);
+    }
+  };
+
+  const loadBranches = async () => {
+    setIsLoadingBranches(true);
+    setBranchesError("");
+    try {
+      const response = await fetch("/api/company/branches", { cache: "no-store" });
+      const data = (await response.json()) as
+        | { branches?: CompanyBranchOption[]; error?: string }
+        | { error?: string };
+      if (!response.ok || !("branches" in data) || !Array.isArray(data.branches)) {
+        setBranchOptions([]);
+        setBranchesError(
+          "error" in data && data.error ? data.error : "Could not load branches.",
+        );
+        return [];
+      }
+      const options = data.branches.map((branch) => ({
+        id: branch.id,
+        name: branch.name,
+        code: branch.code,
+        status: branch.status,
+        isMain: branch.isMain,
+      }));
+      setBranchOptions(options);
+      return options;
+    } catch {
+      setBranchOptions([]);
+      setBranchesError("Could not load branches. Please try again.");
+      return [];
+    } finally {
+      setIsLoadingBranches(false);
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadCompanyStatus() {
+      try {
+        const response = await fetch("/api/company/auth/session");
+        if (cancelled || !response.ok) return;
+        const data = (await response.json()) as {
+          company: { status?: CompanyAccountStatus } | null;
+        };
+        if (!cancelled && data.company?.status) {
+          setCompanyStatus(data.company.status);
+        }
+      } catch {
+        // keep default Active for new users
+      }
+    }
+
+    loadCompanyStatus();
+    void loadRoles();
+    void loadBranches();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadUsers() {
+      setIsLoading(true);
+      setError("");
+      try {
+        const response = await fetch("/api/company/users");
+        const data = (await response.json()) as CompanyUser[] | { error?: string };
+        if (cancelled) return;
+        if (!response.ok || !Array.isArray(data)) {
+          setUsers([]);
+          setError("error" in data && data.error ? data.error : "Could not load users.");
+          return;
+        }
+        setUsers(data);
+      } catch {
+        if (!cancelled) {
+          setUsers([]);
+          setError("Could not load users. Please try again.");
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+
+    loadUsers();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filteredUsers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter((u) =>
+      [
+        u.name,
+        u.email,
+        u.role,
+        u.branchName ?? "",
+        u.branchCode ?? "",
+        u.status,
+        u.accessLabel,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(q)
+    );
+  }, [users, search]);
+
+  const selectableBranches = useMemo(() => {
+    const active = branchOptions.filter((branch) => branch.status === "Active");
+    if (
+      form.branchId &&
+      !active.some((branch) => branch.id === form.branchId) &&
+      branchOptions.some((branch) => branch.id === form.branchId)
+    ) {
+      const current = branchOptions.find((branch) => branch.id === form.branchId);
+      return current ? [...active, current] : active;
+    }
+    return active;
+  }, [branchOptions, form.branchId]);
+
+  const openAddUserModal = async () => {
+    setFormError("");
+    setIsAddingUser(false);
+    setShowPassword(false);
+    setEditingUserId(null);
+    setIsModalOpen(true);
+    const [roles, branches] = await Promise.all([loadRoles(), loadBranches()]);
+    const defaultBranch =
+      branches.find((branch) => branch.isMain && branch.status === "Active") ??
+      branches.find((branch) => branch.status === "Active") ??
+      branches[0];
+    setForm(emptyUserForm(companyStatus, roles[0]?.id ?? "", defaultBranch?.id ?? ""));
+  };
+
+  const openEditUserModal = async (user: CompanyUser) => {
+    setFormError("");
+    setIsAddingUser(false);
+    setShowPassword(false);
+    setEditingUserId(user.id);
+    setForm({
+      image: user.imageUrl,
+      name: user.name,
+      email: user.email,
+      password: "",
+      branchId: user.branchId ?? "",
+      companyRoleId: user.companyRoleId ?? "",
+      status: user.status,
+    });
+    setIsModalOpen(true);
+    await Promise.all([loadRoles(), loadBranches()]);
+  };
+
+  const deleteUser = async (user: CompanyUser) => {
+    if (!window.confirm(`Delete "${user.name}"? This cannot be undone.`)) return;
+
+    setDeletingUserId(user.id);
+    setError("");
+    try {
+      const response = await fetch(`/api/company/users/${user.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+        setError(payload.error ?? "Could not delete user.");
+        return;
+      }
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      if (editingUserId === user.id) {
+        setIsModalOpen(false);
+        setEditingUserId(null);
+      }
+    } catch {
+      setError("Could not delete user. Please try again.");
+    } finally {
+      setDeletingUserId(null);
+    }
+  };
+
+  const submitNewUser = async (e: FormEvent) => {
+    e.preventDefault();
+    setFormError("");
+    if (!form.name.trim() || !form.email.trim() || (!editingUserId && !form.password.trim())) {
+      setFormError(
+        editingUserId ? "Name and email are required." : "Name, email, and password are required."
+      );
+      return;
+    }
+
+    if (!form.branchId) {
+      setFormError("Select a branch. Create one under Branches first if the list is empty.");
+      return;
+    }
+
+    if (!form.companyRoleId) {
+      setFormError("Select a role. Create one under Roles first if the list is empty.");
+      return;
+    }
+
+    setIsAddingUser(true);
+    try {
+      const response = await fetch(
+        editingUserId ? `/api/company/users/${editingUserId}` : "/api/company/users",
+        {
+          method: editingUserId ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: form.name,
+            email: form.email,
+            password: form.password,
+            branchId: form.branchId,
+            companyRoleId: form.companyRoleId,
+            status: companyStatus === "Trial" ? "Trial" : form.status,
+            imageUrl: form.image,
+          }),
+        }
+      );
+
+      const payload = (await response.json()) as CompanyUser | { error?: string };
+      if (!response.ok || !isCompanyUser(payload)) {
+        setFormError("error" in payload && payload.error ? payload.error : "Could not save user.");
+        return;
+      }
+
+      setUsers((prev) =>
+        editingUserId ? prev.map((u) => (u.id === editingUserId ? payload : u)) : [payload, ...prev]
+      );
+      const defaultBranch =
+        branchOptions.find((branch) => branch.isMain && branch.status === "Active") ??
+        branchOptions.find((branch) => branch.status === "Active") ??
+        branchOptions[0];
+      setForm(
+        emptyUserForm(companyStatus, roleOptions[0]?.id ?? "", defaultBranch?.id ?? ""),
+      );
+      setEditingUserId(null);
+      setIsModalOpen(false);
+    } catch {
+      setFormError("Could not save user. Please try again.");
+    } finally {
+      setIsAddingUser(false);
+    }
+  };
+
+  return (
+    <div className="flex h-full flex-col overflow-hidden">
+      <header className="shrink-0 border-b border-[#dfe4ef] bg-[#f3f5fa] px-4 py-4 shadow-[0_10px_28px_-24px_rgba(15,23,42,0.65)] sm:px-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-base font-bold text-zinc-900">Users</h1>
+            <p className="text-xs text-zinc-700">Staff accounts for your lab</p>
+          </div>
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+            <div className="relative w-full sm:w-64">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <path strokeLinecap="round" d="M21 21l-4.35-4.35" />
+              </svg>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search users..."
+                className="h-9 w-full rounded-lg border border-[#d7ddea] bg-white/80 pl-9 pr-3 text-sm text-zinc-800 placeholder:text-zinc-500 outline-none focus:border-[#bcc6da] focus:bg-white"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={openAddUserModal}
+              className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 text-sm font-semibold text-indigo-700 hover:bg-indigo-100"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4">
+                <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+              </svg>
+              Add user
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
+        <div className="overflow-hidden rounded-2xl border border-[#dfe4ef] bg-white shadow-[0_16px_32px_-24px_rgba(15,23,42,0.6)]">
+          <div className="border-b border-[#e8ecf5] px-5 py-4">
+            <h2 className="text-sm font-bold text-zinc-900">Lab team</h2>
+            <p className="text-xs text-zinc-600">
+              {isLoading ? "Loading users..." : `${filteredUsers.length} of ${users.length} members`}
+            </p>
+          </div>
+
+          {error ? (
+            <p className="px-5 py-8 text-center text-sm font-medium text-rose-700">{error}</p>
+          ) : null}
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-[#e8ecf5] bg-[#f3f5fa]/80">
+                  <th className="px-5 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-600">
+                    User
+                  </th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-600">
+                    Branch
+                  </th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-600">
+                    Role
+                  </th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-600">
+                    Status
+                  </th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-600">
+                    Access
+                  </th>
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-zinc-600">
+                    Last seen
+                  </th>
+                  <th className="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wider text-zinc-600">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#e8ecf5]/80">
+                {isLoading
+                  ? Array.from({ length: 5 }, (_, i) => (
+                      <tr key={`skeleton-${i}`} className="animate-pulse">
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-3">
+                            <span className="h-8 w-8 rounded-xl bg-indigo-100" />
+                            <div className="space-y-1.5">
+                              <span className="block h-3.5 w-28 rounded bg-zinc-100" />
+                              <span className="block h-2.5 w-36 rounded bg-zinc-100" />
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3"><span className="block h-3 w-20 rounded bg-zinc-100" /></td>
+                        <td className="px-4 py-3"><span className="block h-5 w-16 rounded-full bg-zinc-100" /></td>
+                        <td className="px-4 py-3"><span className="block h-5 w-14 rounded-full bg-zinc-100" /></td>
+                        <td className="px-4 py-3"><span className="block h-3 w-20 rounded bg-zinc-100" /></td>
+                        <td className="px-4 py-3"><span className="block h-3 w-16 rounded bg-zinc-100" /></td>
+                        <td className="px-4 py-3"><span className="ml-auto block h-8 w-[4.25rem] rounded-lg bg-zinc-100" /></td>
+                      </tr>
+                    ))
+                  : filteredUsers.length === 0
+                    ? (
+                        <tr>
+                          <td colSpan={7} className="px-5 py-12 text-center">
+                            <p className="text-sm font-medium text-zinc-700">No users found</p>
+                            <p className="mt-1 text-xs text-zinc-600">
+                              {users.length === 0
+                                ? "No staff are linked to your lab yet."
+                                : "Try a different search term."}
+                            </p>
+                          </td>
+                        </tr>
+                      )
+                    : filteredUsers.map((u, i) => {
+                        const status = statusMeta[u.status] ?? statusMeta.Active;
+                        const avatar = avatarColors[i % avatarColors.length];
+                        return (
+                          <tr key={u.id} className="hover:bg-[#f3f5fa]/60 transition-colors">
+                            <td className="px-5 py-3">
+                              <div className="flex items-center gap-3 min-w-[200px]">
+                                {u.imageUrl ? (
+                                  <img
+                                    src={u.imageUrl}
+                                    alt=""
+                                    className="h-8 w-8 shrink-0 rounded-xl object-cover ring-1 ring-[#dfe4ef]"
+                                  />
+                                ) : (
+                                  <div
+                                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[11px] font-bold text-white ${avatar}`}
+                                  >
+                                    {u.initials}
+                                  </div>
+                                )}
+                                <div>
+                                  <p className="text-[13px] font-semibold text-zinc-800 truncate">{u.name}</p>
+                                  <p className="text-[11px] text-zinc-600 truncate">{u.email}</p>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              {u.branchName ? (
+                                <div className="min-w-0">
+                                  <p className="truncate text-zinc-700">{u.branchName}</p>
+                                  {u.branchCode ? (
+                                    <p className="font-mono text-[11px] text-zinc-500">{u.branchCode}</p>
+                                  ) : null}
+                                </div>
+                              ) : (
+                                <span className="text-zinc-400">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-zinc-700">{u.role}</td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${status.badge}`}
+                              >
+                                <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+                                {u.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-zinc-600">{u.accessLabel}</td>
+                            <td className="px-4 py-3 text-zinc-600 whitespace-nowrap">
+                              {u.lastSeenAt ? dateFormatter.format(new Date(u.lastSeenAt)) : "—"}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="inline-flex items-center justify-end gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => openEditUserModal(u)}
+                                  aria-label={`Edit ${u.name}`}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-100 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+                                >
+                                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4" aria-hidden>
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"
+                                    />
+                                  </svg>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => deleteUser(u)}
+                                  disabled={deletingUserId === u.id}
+                                  aria-label={`Delete ${u.name}`}
+                                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-100 bg-rose-50 text-rose-700 hover:bg-rose-100 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {deletingUserId === u.id ? (
+                                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden>
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                      <path
+                                        className="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                      />
+                                    </svg>
+                                  ) : (
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4" aria-hidden>
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3M4 7h16"
+                                      />
+                                    </svg>
+                                  )}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+
+      {isModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-900/40 backdrop-blur-sm p-4">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-y-auto rounded-2xl border border-emerald-100 bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-3.5 border-b border-emerald-50">
+              <div>
+                <h2 className="text-lg font-bold text-zinc-950">{editingUserId ? "Edit User" : "Add New User"}</h2>
+                <p className="text-sm font-medium text-zinc-800 mt-1">
+                  {editingUserId ? "Update this staff member's details" : "Add a staff member to your lab"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50"
+              >
+                Close
+              </button>
+            </div>
+            <form onSubmit={submitNewUser} className="px-6 py-4 space-y-3">
+              <div className="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2">
+                <div className="sm:col-span-2 flex flex-col items-center text-center">
+                  <p className="text-sm font-bold text-zinc-950">Upload image</p>
+                  <label
+                    className="group relative mx-auto mt-2 flex h-16 w-16 cursor-pointer items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-emerald-300 bg-emerald-50 text-emerald-700 shadow-sm transition-colors hover:border-emerald-400 hover:bg-emerald-100 focus-within:ring-2 focus-within:ring-emerald-200 focus-within:ring-offset-2"
+                    aria-label="Upload image"
+                  >
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="sr-only"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = "";
+                        if (!file) {
+                          setForm((f) => ({ ...f, image: null }));
+                          return;
+                        }
+                        setIsUploadingImage(true);
+                        try {
+                          const url = await uploadImageFile(file, "avatars");
+                          setForm((f) => ({ ...f, image: url }));
+                        } catch (error) {
+                          setFormError(error instanceof Error ? error.message : "Could not upload image.");
+                        } finally {
+                          setIsUploadingImage(false);
+                        }
+                      }}
+                    />
+                    {form.image ? (
+                      <>
+                        <img src={form.image} alt="" className="h-full w-full object-cover" />
+                        <span className="absolute inset-0 flex items-center justify-center bg-zinc-900/0 text-white opacity-0 transition-opacity group-hover:bg-zinc-900/40 group-hover:opacity-100">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="h-6 w-6">
+                            <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+                          </svg>
+                        </span>
+                      </>
+                    ) : (
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="h-7 w-7" aria-hidden>
+                        <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+                      </svg>
+                    )}
+                  </label>
+                  {isUploadingImage ? <p className="mt-2 text-xs font-medium text-zinc-600">Uploading…</p> : null}
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-sm font-bold text-zinc-950">Full name</label>
+                  <input
+                    value={form.name}
+                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                    className={userInputClass}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-bold text-zinc-950">Email</label>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                    className={userInputClass}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-bold text-zinc-950">
+                    Password{editingUserId ? <span className="font-medium text-zinc-600"> (optional)</span> : null}
+                  </label>
+                  <div className="relative mt-1.5">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={form.password}
+                      onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+                      autoComplete="new-password"
+                      placeholder={editingUserId ? "Leave blank to keep the current password" : undefined}
+                      className={`${userInputClass} mt-0 pr-12`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-500 hover:bg-emerald-50 hover:text-zinc-800"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5" aria-hidden>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029M6.223 6.223A9.956 9.956 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411M15 12a3 3 0 11-6 0 3 3 0 016 0zM3 3l18 18" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-5 w-5" aria-hidden>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-bold text-zinc-950">Branch</label>
+                  <select
+                    value={form.branchId}
+                    onChange={(e) => setForm((f) => ({ ...f, branchId: e.target.value }))}
+                    className={userInputClass}
+                    disabled={isLoadingBranches}
+                  >
+                    <option value="">
+                      {isLoadingBranches
+                        ? "Loading branches…"
+                        : selectableBranches.length === 0
+                          ? "No branches in database"
+                          : "Select a branch"}
+                    </option>
+                    {editingUserId &&
+                    form.branchId &&
+                    !selectableBranches.some((branch) => branch.id === form.branchId) ? (
+                      <option value={form.branchId}>Current branch (unavailable)</option>
+                    ) : null}
+                    {selectableBranches.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.name}
+                        {branch.isMain ? " (Main)" : ""} · {branch.code}
+                      </option>
+                    ))}
+                  </select>
+                  {branchesError ? (
+                    <p className="mt-1.5 text-sm font-medium text-rose-700">{branchesError}</p>
+                  ) : null}
+                  {!branchesError && !isLoadingBranches && selectableBranches.length === 0 ? (
+                    <p className="mt-1.5 text-sm font-medium text-amber-800">
+                      Create branches under Administrations → Branches first.
+                    </p>
+                  ) : null}
+                </div>
+                <div>
+                  <label className="text-sm font-bold text-zinc-950">Role</label>
+                  <select
+                    value={form.companyRoleId}
+                    onChange={(e) => setForm((f) => ({ ...f, companyRoleId: e.target.value }))}
+                    className={userInputClass}
+                    disabled={isLoadingRoles}
+                  >
+                    <option value="">
+                      {isLoadingRoles
+                        ? "Loading roles…"
+                        : roleOptions.length === 0
+                          ? "No roles in database"
+                          : "Select a role"}
+                    </option>
+                    {editingUserId &&
+                    form.companyRoleId &&
+                    !roleOptions.some((role) => role.id === form.companyRoleId) ? (
+                      <option value={form.companyRoleId}>Current role (unavailable)</option>
+                    ) : null}
+                    {roleOptions.map((role) => (
+                      <option key={role.id} value={role.id}>
+                        {role.name}
+                      </option>
+                    ))}
+                  </select>
+                  {rolesError ? (
+                    <p className="mt-1.5 text-sm font-medium text-rose-700">{rolesError}</p>
+                  ) : null}
+                  {!rolesError && !isLoadingRoles && roleOptions.length === 0 ? (
+                    <p className="mt-1.5 text-sm font-medium text-amber-800">
+                      Create roles under Administrations → Roles first.
+                    </p>
+                  ) : null}
+                  {form.companyRoleId ? (
+                    <p className="mt-1.5 font-mono text-[11px] text-zinc-500">
+                      Login dashboard:{" "}
+                      {roleOptions.find((role) => role.id === form.companyRoleId)?.dashboardRoute ??
+                        "—"}
+                    </p>
+                  ) : null}
+                </div>
+                <div>
+                  <label className="text-sm font-bold text-zinc-950">Status</label>
+                  <select
+                    value={form.status}
+                    disabled={companyStatus === "Trial"}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, status: e.target.value as NewUserForm["status"] }))
+                    }
+                    className={`${userInputClass} disabled:cursor-not-allowed disabled:bg-amber-50 disabled:text-amber-900 disabled:opacity-100`}
+                  >
+                    <option>Active</option>
+                    <option>Trial</option>
+                    <option>Inactive</option>
+                  </select>
+                  {companyStatus === "Trial" ? (
+                    <p className="mt-1.5 text-sm font-medium text-amber-800">
+                      Trial labs can only add users with Trial status.
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+
+              {formError ? <p className="text-sm font-semibold text-red-700">{formError}</p> : null}
+
+              <div className="flex justify-end gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  disabled={isAddingUser}
+                  className="rounded-lg border border-zinc-300 bg-white px-4 py-2.5 text-base font-bold text-zinc-900 hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAddingUser}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-emerald-300 bg-emerald-100 px-4 py-2.5 text-base font-bold text-emerald-900 hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-70 min-w-36"
+                >
+                  {isAddingUser ? (
+                    <>
+                      <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden>
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path
+                          className="opacity-75"
+                          fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        />
+                      </svg>
+                      {editingUserId ? "Saving..." : "Adding..."}
+                    </>
+                  ) : editingUserId ? (
+                    "Save changes"
+                  ) : (
+                    "Add user"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+

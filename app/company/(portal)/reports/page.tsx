@@ -1,11 +1,46 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
+import { Suspense, useMemo, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { COMPANY_REPORT_TAB_VALUES } from "@/lib/company-reports-menu";
 
-const validTabSet = new Set<string>(COMPANY_REPORT_TAB_VALUES);
+import AppointmentsReport from "./AppointmentsReport";
+import DailyAccountSummary from "./DailyAccountSummary";
+import DailyFlashSummary from "./DailyFlashSummary";
+import DiagnosticsReport from "./DiagnosticsReport";
+import MonthlyAnnualAccount from "./MonthlyAnnualAccount";
+import ServicesReport from "./ServicesReport";
+
+/** Fully built report screens, keyed by tab. */
+const reportViews: Record<string, { breadcrumb: string[]; render: () => ReactNode }> = {
+  "daily-flash-summary": {
+    breadcrumb: ["Business Reports", "Daily Flash Summary"],
+    render: () => <DailyFlashSummary />,
+  },
+  "diagnostics-report": {
+    breadcrumb: ["Business Reports", "Diagnostics Report"],
+    render: () => <DiagnosticsReport />,
+  },
+  "services-report": {
+    breadcrumb: ["Business Reports", "Services Report"],
+    render: () => <ServicesReport />,
+  },
+  "appointments-report": {
+    breadcrumb: ["Business Reports", "Appointments Report"],
+    render: () => <AppointmentsReport />,
+  },
+  "daily-account-summary": {
+    breadcrumb: ["Business Reports", "Daily Account Summary"],
+    render: () => <DailyAccountSummary />,
+  },
+  "monthly-annual-account": {
+    breadcrumb: ["Business Reports", "Monthly/Annual Account"],
+    render: () => <MonthlyAnnualAccount />,
+  },
+};
+
+const validTabSet = new Set<string>([...COMPANY_REPORT_TAB_VALUES, ...Object.keys(reportViews)]);
 
 /** Legacy group-level tab redirects to first leaf. */
 const legacyRedirectMap: Record<string, string> = {
@@ -197,7 +232,9 @@ const panels: Record<string, Panel> = {
 function CompanyReportsContent() {
   const searchParams = useSearchParams();
   const tab = useMemo(() => normalizeTabParam(searchParams.get("tab")), [searchParams]);
+  const view = reportViews[tab];
   const panel = useMemo(() => panels[tab] ?? panels["dr-collective-due"], [tab]);
+  const breadcrumb = view?.breadcrumb ?? panel.breadcrumb;
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
@@ -205,13 +242,16 @@ function CompanyReportsContent() {
         <div>
           <h1 className="text-base font-bold text-zinc-900">Reports</h1>
           <p className="mt-1 text-xs text-zinc-700">
-            <span className="font-semibold text-zinc-900">{panel.breadcrumb.join(" · ")}</span>
+            <span className="font-semibold text-zinc-900">{breadcrumb.join(" · ")}</span>
             <span className="text-zinc-600"> · Switch report from the Reports menu in the sidebar.</span>
           </p>
         </div>
       </header>
 
       <main className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6">
+        {view ? (
+          view.render()
+        ) : (
         <section className="overflow-hidden rounded-2xl border border-[#dfe4ef] bg-[#f8f9fc] p-4 shadow-[0_16px_32px_-24px_rgba(15,23,42,0.6)] sm:p-8">
           <div className="space-y-2">
             <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
@@ -231,6 +271,7 @@ function CompanyReportsContent() {
             </div>
           </div>
         </section>
+        )}
       </main>
     </div>
   );

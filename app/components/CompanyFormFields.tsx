@@ -2,12 +2,18 @@
 
 import { useState } from "react";
 
+import {
+  COMPANY_BRAND_COLORS,
+  DEFAULT_COMPANY_BRAND_COLOR,
+  isValidBrandHex,
+} from "@/lib/company-brand-colors";
 import { uploadImageFile } from "@/lib/upload-image";
 
 export type CompanyFormValues = {
   logo: string | null;
   name: string;
   labCode: string;
+  brandColor: string;
   password: string;
   location: string;
   status: "Active" | "Trial" | "Inactive";
@@ -32,6 +38,12 @@ type CompanyFormFieldsProps = {
   showPasswordToggle?: boolean;
   /** Hide the password field (e.g. admin modals where credentials live on users). */
   hidePassword?: boolean;
+  /** Hide the lab code field (e.g. public demo applications). */
+  hideLabCode?: boolean;
+  /** Hide company brand color select. */
+  hideBrandColor?: boolean;
+  /** Hide the status field. */
+  hideStatus?: boolean;
   /** Hide the contact email and phone fields. */
   hideContactFields?: boolean;
 };
@@ -46,10 +58,22 @@ export function CompanyFormFields({
   passwordPlaceholder,
   showPasswordToggle = false,
   hidePassword = false,
+  hideLabCode = false,
+  hideBrandColor = false,
+  hideStatus = false,
   hideContactFields = false,
 }: CompanyFormFieldsProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const brandColorValue = form.brandColor || DEFAULT_COMPANY_BRAND_COLOR;
+  const pickerColor = isValidBrandHex(brandColorValue)
+    ? brandColorValue.toUpperCase()
+    : DEFAULT_COMPANY_BRAND_COLOR;
+  const selectedPreset = COMPANY_BRAND_COLORS.some(
+    (color) => color.value.toLowerCase() === brandColorValue.toLowerCase(),
+  )
+    ? brandColorValue.toUpperCase()
+    : "custom";
 
   return (
     <div className="space-y-4">
@@ -109,10 +133,83 @@ export function CompanyFormFields({
         />
       </div>
 
-      <div>
-        <label className="text-sm font-bold text-zinc-950">Lab Code</label>
-        <input readOnly value={form.labCode} className={`${readOnlyClass} font-mono`} />
-      </div>
+      {hideLabCode ? null : (
+        <div>
+          <label className="text-sm font-bold text-zinc-950">Lab Code</label>
+          <input readOnly value={form.labCode} className={`${readOnlyClass} font-mono`} />
+        </div>
+      )}
+
+      {hideBrandColor ? null : (
+        <div>
+          <label className="text-sm font-bold text-zinc-950">Company Brand Color</label>
+          <div className="mt-1.5 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <label
+              className="relative inline-flex h-10 w-14 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-emerald-200 shadow-sm"
+              title="Pick a custom color"
+            >
+              <span
+                aria-hidden
+                className="absolute inset-0"
+                style={{ backgroundColor: pickerColor }}
+              />
+              <input
+                type="color"
+                value={pickerColor}
+                onChange={(e) =>
+                  onChange((f) => ({
+                    ...f,
+                    brandColor: e.target.value.toUpperCase(),
+                  }))
+                }
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                aria-label="Pick company brand color"
+              />
+            </label>
+            <input
+              type="text"
+              value={brandColorValue.toUpperCase()}
+              onChange={(e) => {
+                const next = e.target.value.trim();
+                if (!next) {
+                  onChange((f) => ({ ...f, brandColor: DEFAULT_COMPANY_BRAND_COLOR }));
+                  return;
+                }
+                const withHash = next.startsWith("#") ? next : `#${next}`;
+                if (/^#[0-9a-fA-F]{0,6}$/.test(withHash)) {
+                  onChange((f) => ({ ...f, brandColor: withHash.toUpperCase() }));
+                }
+              }}
+              onBlur={() => {
+                if (!isValidBrandHex(brandColorValue)) {
+                  onChange((f) => ({ ...f, brandColor: DEFAULT_COMPANY_BRAND_COLOR }));
+                }
+              }}
+              spellCheck={false}
+              className={`${inputClass} mt-0 font-mono sm:w-28`}
+              aria-label="Brand color hex value"
+            />
+            <select
+              value={selectedPreset}
+              onChange={(e) => {
+                if (e.target.value === "custom") return;
+                onChange((f) => ({ ...f, brandColor: e.target.value.toUpperCase() }));
+              }}
+              className={`${inputClass} mt-0 min-w-0 flex-1`}
+            >
+              {COMPANY_BRAND_COLORS.map((color) => (
+                <option key={color.value} value={color.value.toUpperCase()}>
+                  {color.label}
+                </option>
+              ))}
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <p className="mt-1.5 text-xs text-zinc-600">
+            Use the color picker or choose a preset. Custom hex values are saved as-is.
+          </p>
+        </div>
+      )}
 
       {hidePassword ? null : (
       <div>
@@ -174,24 +271,26 @@ export function CompanyFormFields({
       </div>
       )}
 
-      <div>
-        <label className="text-sm font-bold text-zinc-950">Status</label>
-        {statusMode === "readonly" ? (
-          <input readOnly value={form.status} className={readOnlyClass} />
-        ) : (
-          <select
-            value={form.status}
-            onChange={(e) =>
-              onChange((f) => ({ ...f, status: e.target.value as CompanyFormValues["status"] }))
-            }
-            className={inputClass}
-          >
-            <option value="Active">Active</option>
-            <option value="Trial">Trial</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-        )}
-      </div>
+      {hideStatus ? null : (
+        <div>
+          <label className="text-sm font-bold text-zinc-950">Status</label>
+          {statusMode === "readonly" ? (
+            <input readOnly value={form.status} className={readOnlyClass} />
+          ) : (
+            <select
+              value={form.status}
+              onChange={(e) =>
+                onChange((f) => ({ ...f, status: e.target.value as CompanyFormValues["status"] }))
+              }
+              className={inputClass}
+            >
+              <option value="Active">Active</option>
+              <option value="Trial">Trial</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          )}
+        </div>
+      )}
 
       <div>
         <label className="text-sm font-bold text-zinc-950">Location</label>

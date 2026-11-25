@@ -447,7 +447,7 @@ export default function FeaturesPage() {
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <GetDemoButton className="inline-flex items-center gap-2 rounded-xl bg-white text-emerald-700 font-semibold px-7 py-3.5 text-sm hover:bg-emerald-50 transition-colors shadow-lg">
-              Get a Demo
+              Apply for Demo
             </GetDemoButton>
             <Link
               href="/"

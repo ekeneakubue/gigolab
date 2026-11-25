@@ -1,12 +1,19 @@
 import { NextResponse } from "next/server";
 
 import {
+  adminSessionCookieOptions,
+  clearAdminSessionCookieOptions,
+  createAdminSessionToken,
+} from "@/lib/admin-auth";
+import {
+  clearCompanySessionCookieOptions,
   companySessionCookieOptions,
   createCompanySessionToken,
 } from "@/lib/company-auth";
 import { verifyPassword } from "@/lib/password";
 import { prismaErrorResponse } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
+import { toRoleLabel } from "@/lib/user-role";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -43,9 +50,20 @@ export async function POST(request: Request) {
       },
       select: {
         id: true,
+        email: true,
+        name: true,
+        initials: true,
         role: true,
         status: true,
         passwordHash: true,
+        companyRoleId: true,
+        companyRole: {
+          select: {
+            id: true,
+            name: true,
+            dashboardRoute: true,
+          },
+        },
         company: {
           select: {
             id: true,
@@ -80,7 +98,18 @@ export async function POST(request: Request) {
         data: { lastSeenAt: now },
       });
 
-      return NextResponse.json({ redirectTo: ADMIN_DASHBOARD });
+      const token = await createAdminSessionToken({
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+        initials: user.initials,
+        role: toRoleLabel(user.role),
+      });
+
+      const response = NextResponse.json({ redirectTo: ADMIN_DASHBOARD });
+      response.cookies.set(adminSessionCookieOptions(token));
+      response.cookies.set(clearCompanySessionCookieOptions());
+      return response;
     }
 
     if (!user.company) {
@@ -108,24 +137,41 @@ export async function POST(request: Request) {
       }),
     ]);
 
+    const roleLabel = user.companyRole?.name ?? toRoleLabel(user.role);
+    const dashboardRoute = user.companyRole?.dashboardRoute || COMPANY_DASHBOARD;
     const token = await createCompanySessionToken({
       companyId: user.company.id,
       code: user.company.code,
       name: user.company.name,
       initials: user.company.initials,
+      userId: user.id,
+      userName: user.name,
+      userInitials: user.initials,
+      role: roleLabel,
+      companyRoleId: user.companyRole?.id,
+      dashboardRoute: user.companyRole?.dashboardRoute,
     });
 
     const response = NextResponse.json({
-      redirectTo: COMPANY_DASHBOARD,
+      redirectTo: dashboardRoute,
       company: {
         id: user.company.id,
         code: user.company.code,
         name: user.company.name,
         initials: user.company.initials,
       },
+      user: {
+        id: user.id,
+        name: user.name,
+        initials: user.initials,
+        role: roleLabel,
+        companyRoleId: user.companyRole?.id ?? null,
+        dashboardRoute: user.companyRole?.dashboardRoute ?? null,
+      },
     });
 
     response.cookies.set(companySessionCookieOptions(token));
+    response.cookies.set(clearAdminSessionCookieOptions());
     return response;
   } catch (error) {
     const { status, message } = prismaErrorResponse(error, "Could not sign in.");

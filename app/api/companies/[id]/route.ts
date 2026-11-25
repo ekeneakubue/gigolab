@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import type { AccountStatus } from "@prisma/client";
 
+import { normalizeCompanyBrandColor } from "@/lib/company-brand-colors";
+import { syncCompanyFeatures, withCompanyFeatureIds } from "@/lib/company-features";
 import { hashPassword } from "@/lib/password";
 import { prismaErrorResponse } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
@@ -32,6 +34,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       contact?: string;
       phone?: string;
       logoUrl?: string | null;
+      brandColor?: string;
+      featureIds?: string[];
     };
 
     const name = body.name?.trim() ?? "";
@@ -39,6 +43,10 @@ export async function PATCH(request: Request, context: RouteContext) {
     const contactEmail = body.contact === undefined ? undefined : body.contact.trim();
     const phone = body.phone === undefined ? undefined : body.phone.trim() || null;
     const password = body.password?.trim() ?? "";
+    const brandColor =
+      body.brandColor === undefined
+        ? undefined
+        : normalizeCompanyBrandColor(body.brandColor);
     const logoUrl =
       body.logoUrl === undefined
         ? undefined
@@ -51,12 +59,20 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
     }
 
-    const existing = await prisma.company.findUnique({ where: { id } });
+    const existing = await prisma.company.findUnique({
+      where: { id },
+      include: { features: { select: { featureId: true } } },
+    });
     if (!existing) {
       return NextResponse.json({ error: "Company not found." }, { status: 404 });
     }
 
     const status = body.status ?? existing.status;
+    const shouldSyncFeatures = Array.isArray(body.featureIds);
+
+    if (shouldSyncFeatures) {
+      await syncCompanyFeatures(prisma, id, body.featureIds ?? []);
+    }
 
     const updated = await prisma.company.update({
       where: { id },
@@ -68,8 +84,12 @@ export async function PATCH(request: Request, context: RouteContext) {
         ...(contactEmail !== undefined ? { contactEmail } : {}),
         ...(phone !== undefined ? { phone } : {}),
         ...(logoUrl !== undefined ? { logoUrl } : {}),
+        ...(brandColor !== undefined ? { brandColor } : {}),
         ...(password ? { passwordHash: hashPassword(password) } : {}),
         lastActiveAt: new Date(),
+      },
+      include: {
+        features: { select: { featureId: true } },
       },
     });
 
@@ -77,7 +97,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       await replaceStoredImage(existing.logoUrl, logoUrl);
     }
 
-    return NextResponse.json(updated);
+    return NextResponse.json(withCompanyFeatureIds(updated));
   } catch (error) {
     const storageError = storageErrorStatus(error);
     if (storageError) {

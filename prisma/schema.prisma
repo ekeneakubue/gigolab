@@ -58,25 +58,75 @@ model Company {
   userCount     Int            @default(0)
   sampleCount   Int            @default(0)
   logoUrl       String?
+  /// Hex brand color used for company theming, e.g. #059669
+  brandColor    String         @default("#059669")
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
   users                User[]
+  roles                CompanyRole[]
+  patients             Patient[]
   ageGroups            AgeGroup[]
   departments          Department[]
   doctors              Doctor[]
   tests                Test[]
   packages             Package[]
   sampleRegistrations  SampleRegistration[]
+  testRequests         TestRequest[]
+  insuranceTypes       InsuranceType[]
+  appointments         Appointment[]
+  features             CompanyFeature[]
+  branches             Branch[]
 
   @@index([status])
   @@map("companies")
+}
+
+/// Lab branch / collection centre under a company.
+model Branch {
+  id        String        @id @default(cuid())
+  companyId String
+  company   Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code      String
+  name      String
+  location  String        @default("")
+  address   String        @default("")
+  phone     String        @default("")
+  email     String        @default("")
+  isMain    Boolean       @default(false)
+  status    AccountStatus @default(Active)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  users User[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([status])
+  @@map("branches")
+}
+
+/// Features enabled for a company (admin Edit Company entitlements).
+model CompanyFeature {
+  companyId String
+  featureId String
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  feature   AppFeature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+
+  @@id([companyId, featureId])
+  @@index([featureId])
+  @@map("company_features")
 }
 
 model User {
   id           String         @id @default(cuid())
   companyId    String?
   company      Company?       @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  companyRoleId String?
+  companyRole  CompanyRole?   @relation(fields: [companyRoleId], references: [id], onDelete: SetNull)
+  branchId     String?
+  branch       Branch?        @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
   email        String         @unique
   name         String
@@ -93,8 +143,77 @@ model User {
   imageUrl     String?
 
   @@index([companyId])
+  @@index([companyRoleId])
+  @@index([branchId])
   @@index([status])
   @@map("users")
+}
+
+model Patient {
+  id                String        @id @default(cuid())
+  companyId         String
+  company           Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  patientCode       String
+  name              String
+  email             String        @default("")
+  phone             String        @default("")
+  gender            String        @default("")
+  dateOfBirth       DateTime?
+  address           String        @default("")
+  hasInsurance      Boolean       @default(false)
+  insuranceProvider String        @default("")
+  insuranceNumber   String        @default("")
+  insurancePlan     String        @default("")
+  status            AccountStatus @default(Active)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  testRequests      TestRequest[]
+  appointments      Appointment[]
+
+  @@unique([companyId, patientCode])
+  @@index([companyId])
+  @@index([email])
+  @@index([status])
+  @@map("patients")
+}
+
+/// Custom lab role with a private dashboard route assigned on login.
+model CompanyRole {
+  id             String   @id @default(cuid())
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name           String
+  description    String   @default("")
+  /// e.g. /company/dashboards/lab-technician
+  dashboardRoute String
+  permissionKeys String[] @default([])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  users User[]
+
+  @@unique([companyId, name])
+  @@unique([companyId, dashboardRoute])
+  @@index([companyId])
+  @@map("company_roles")
+}
+
+/// Platform / admin roles (mirrors company roles: route + feature permissions).
+model SystemRole {
+  id             String   @id @default(cuid())
+  name           String   @unique
+  description    String   @default("")
+  /// e.g. /admin or /admin/dashboards/manager
+  dashboardRoute String   @unique
+  /// Admin | Lab — admin portal vs lab-facing system roles
+  kind           String   @default("Lab")
+  permissionKeys String[] @default([])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([kind])
+  @@map("system_roles")
 }
 
 model AgeGroup {
@@ -158,6 +277,7 @@ model Doctor {
   updatedAt       DateTime @updatedAt
 
   sampleRegistrations SampleRegistration[]
+  testRequests        TestRequest[]
 
   @@index([companyId])
   @@map("doctors")
@@ -186,6 +306,7 @@ model Test {
   updatedAt       DateTime       @updatedAt
 
   registrationTests SampleRegistrationTest[]
+  testRequestItems  TestRequestItem[]
 
   @@index([companyId])
   @@index([departmentId])
@@ -243,4 +364,202 @@ model Package {
 
   @@index([companyId])
   @@map("packages")
+}
+
+enum TestRequestStatus {
+  Pending
+  InProgress
+  Completed
+}
+
+enum TestRequestPriority {
+  Routine
+  Urgent
+  STAT
+}
+
+enum TestRequestPaymentStatus {
+  Unpaid
+  Partial
+  Paid
+}
+
+/// Diagnostic order created from Diagnostics → Test Requests.
+model TestRequest {
+  id            String              @id @default(cuid())
+  companyId     String
+  company       Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  requestCode   String
+  /// Unique scan token printed as barcode / used on /results/[token]
+  barcodeToken  String              @unique @default(cuid())
+  patientId     String
+  patient       Patient             @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  doctorId      String?
+  doctor        Doctor?             @relation(fields: [doctorId], references: [id], onDelete: SetNull)
+  priority      TestRequestPriority @default(Routine)
+  sampleType    String
+  clinicalNotes String              @default("")
+  status        TestRequestStatus   @default(Pending)
+  requestedAt   DateTime
+  totalAmount   Float               @default(0)
+  paymentStatus TestRequestPaymentStatus @default(Unpaid)
+  paymentMethod String              @default("")
+  amountPaid    Float               @default(0)
+  paymentRef    String              @default("")
+  paidAt        DateTime?
+  /// Set from Check Test Result after review — unlocks public QR lookup
+  resultsReleased Boolean           @default(false)
+  verifiedAt    DateTime?
+  items         TestRequestItem[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@unique([companyId, requestCode])
+  @@index([companyId])
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([resultsReleased])
+  @@index([requestedAt])
+  @@map("test_requests")
+}
+
+model TestRequestItem {
+  id          String      @id @default(cuid())
+  requestId   String
+  request     TestRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  testId      String
+  test        Test        @relation(fields: [testId], references: [id], onDelete: Restrict)
+  /// Snapshot of catalogue amount at request time
+  amount      Float
+  result      String      @default("")
+  normalRange String      @default("")
+  sortOrder   Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([requestId])
+  @@index([testId])
+  @@map("test_request_items")
+}
+
+enum AppointmentStatus {
+  Pending
+  Confirmed
+  Cancelled
+  Completed
+}
+
+model Appointment {
+  id          String            @id @default(cuid())
+  companyId   String
+  company     Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  patientId   String
+  patient     Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  scheduledAt DateTime
+  reason      String
+  notes       String            @default("")
+  status      AppointmentStatus @default(Pending)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([companyId])
+  @@index([patientId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@map("appointments")
+}
+
+/// Catalogue of insurance type categories for a company (e.g. HMO, NHIS, Corporate).
+model InsuranceType {
+  id          String        @id @default(cuid())
+  companyId   String
+  company     Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name        String
+  code        String        @default("")
+  description String        @default("")
+  status      AccountStatus @default(Active)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@index([status])
+  @@map("insurance_types")
+}
+
+enum AppFeatureType {
+  Page
+  Menu
+}
+
+enum AppFeatureStatus {
+  Active
+  Inactive
+}
+
+/// Platform sidebar feature managed from `/admin/app-features`.
+model AppFeature {
+  id          String           @id @default(cuid())
+  name        String
+  route       String           @unique
+  type        AppFeatureType   @default(Page)
+  status      AppFeatureStatus @default(Active)
+  description String           @default("")
+  sortOrder   Int              @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  modules   AppFeatureModule[]
+  companies CompanyFeature[]
+
+  @@index([status])
+  @@index([sortOrder])
+  @@map("app_features")
+}
+
+enum DemoApplicationStatus {
+  Pending
+  Contacted
+  Approved
+  Rejected
+}
+
+/// Public "Apply for Demo" submissions from the marketing site.
+model DemoApplication {
+  id           String                 @id @default(cuid())
+  labName      String
+  location     String
+  contactEmail String
+  phone        String                 @default("")
+  logoUrl      String?
+  status       DemoApplicationStatus  @default(Pending)
+  notes        String                 @default("")
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  @@index([status])
+  @@index([contactEmail])
+  @@index([createdAt])
+  @@map("demo_applications")
+}
+
+/// Nested submenu tree for an `AppFeature` (unlimited depth via parent/children).
+model AppFeatureModule {
+  id        String             @id @default(cuid())
+  featureId String
+  feature   AppFeature         @relation(fields: [featureId], references: [id], onDelete: Cascade)
+  parentId  String?
+  parent    AppFeatureModule?  @relation("AppFeatureModuleTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  AppFeatureModule[] @relation("AppFeatureModuleTree")
+  label     String
+  sortOrder Int                @default(0)
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@index([featureId])
+  @@index([parentId])
+  @@index([sortOrder])
+  @@map("app_feature_modules")
 }

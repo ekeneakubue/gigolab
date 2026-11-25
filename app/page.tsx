@@ -840,7 +840,7 @@ export default function Home() {
             </p>
             <div className="flex items-center gap-4 flex-wrap">
               <GetDemoButton className="inline-flex items-center gap-2 bg-white text-zinc-900 font-semibold px-7 py-3.5 rounded-lg hover:bg-zinc-100 transition-colors shadow-lg">
-                Get a Demo
+                Apply for Demo
               </GetDemoButton>
               <Link
                 href="#features"
@@ -1186,15 +1186,13 @@ export default function Home() {
             Try Gigolab
           </p>
           <h2 className="text-3xl md:text-4xl font-bold text-zinc-900 tracking-tight mb-4">
-            Get a hands-on demo lab
+            Apply for a hands-on demo
           </h2>
           <p className="text-zinc-600 text-base leading-relaxed mb-8">
-            Spin up a trial lab with an auto-generated code like{" "}
-            <code className="font-mono text-sm bg-white px-2 py-0.5 rounded-md border border-emerald-200">Demo-a1B2</code> and
-            password <code className="font-mono text-sm bg-white px-2 py-0.5 rounded-md border border-emerald-200">demo123</code>, then sign in to the company portal.
+            Share your lab details and we&apos;ll set up a guided demo so your team can explore Gigolab with real workflows.
           </p>
           <GetDemoButton className="inline-flex items-center gap-2 bg-zinc-900 text-white font-semibold px-7 py-3.5 rounded-lg hover:bg-zinc-800 transition-colors shadow-md">
-            Get a Demo
+            Apply for Demo
           </GetDemoButton>
         </div>
       </section>
