@@ -4,32 +4,13 @@ import type { AppFeatureStatus, AppFeatureType } from "@prisma/client";
 import { getAdminSession } from "@/lib/admin-auth";
 import {
   mapFeatureForApi,
+  normalizeModules,
   replaceFeatureModules,
-  type AppFeatureModuleNode,
 } from "@/lib/app-features";
 import { isUniqueConstraintError, prismaErrorResponse } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
 
 type RouteContext = { params: Promise<{ id: string }> };
-
-function normalizeModules(input: unknown): AppFeatureModuleNode[] {
-  if (!Array.isArray(input)) return [];
-
-  return input
-    .map((item) => {
-      if (!item || typeof item !== "object") return null;
-      const record = item as { id?: unknown; label?: unknown; children?: unknown };
-      const label = typeof record.label === "string" ? record.label.trim() : "";
-      const children = normalizeModules(record.children);
-      if (!label && children.length === 0) return null;
-      return {
-        id: typeof record.id === "string" ? record.id : undefined,
-        label: label || "Untitled",
-        children,
-      };
-    })
-    .filter((item): item is AppFeatureModuleNode => item !== null);
-}
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {

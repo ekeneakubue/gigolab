@@ -12,11 +12,11 @@ type PatientSessionInfo = {
   companyLogoUrl: string | null;
 };
 
-const navItems = [
+const navItems: { href: string; label: string; exact?: boolean }[] = [
   { href: "/patients", label: "Dashboard", exact: true },
   { href: "/patients/results", label: "Results" },
   { href: "/patients/appointments", label: "Appointments" },
-] as const;
+];
 
 export default function PatientShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();

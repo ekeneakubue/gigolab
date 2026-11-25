@@ -8,6 +8,27 @@ export type AppFeatureModuleNode = {
   children: AppFeatureModuleNode[];
 };
 
+/** Parse nested module payloads from admin create/update requests. */
+export function normalizeModules(input: unknown): AppFeatureModuleNode[] {
+  if (!Array.isArray(input)) return [];
+
+  const nodes: AppFeatureModuleNode[] = [];
+  for (const item of input) {
+    if (!item || typeof item !== "object") continue;
+    const record = item as { id?: unknown; label?: unknown; children?: unknown };
+    const label = typeof record.label === "string" ? record.label.trim() : "";
+    const children = normalizeModules(record.children);
+    if (!label && children.length === 0) continue;
+    const node: AppFeatureModuleNode = {
+      label: label || "Untitled",
+      children,
+    };
+    if (typeof record.id === "string") node.id = record.id;
+    nodes.push(node);
+  }
+  return nodes;
+}
+
 export type AppFeaturePayload = {
   id: string;
   name: string;
